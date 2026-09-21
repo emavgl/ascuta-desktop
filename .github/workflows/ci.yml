@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  headless:
+    # Pure headless gate: no display server, no audio device, no network
+    # models. Everything must pass via fakes + unit tests.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: fmt
+        run: cargo fmt --check
+        working-directory: src-tauri
+      - name: clippy
+        run: cargo clippy --all-targets -- -D warnings
+        working-directory: src-tauri
+      - name: unit tests
+        run: cargo test
+        working-directory: src-tauri
+      - name: headless self-check (no display/audio/network/models)
+        run: cargo run -- --check
+        working-directory: src-tauri
+        env:
+          # Isolate from any runner-level config; prove the fallback path.
+          ASCUTA_CONFIG_FILE: ${{ runner.temp }}/ascuta-ci-settings.json

@@ -1,0 +1,15 @@
+/target/
+**/target/
+*.log
+.DS_Store
+
+# Runtime model downloads (large, per-machine) — see PLAN §5.
+models/
+*.onnx
+*.bin
+!src-tauri/assets/
+
+# Local settings / history (per-machine).
+settings.json
+*.db
+*.sqlite
