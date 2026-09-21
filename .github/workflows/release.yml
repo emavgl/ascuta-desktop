@@ -1,0 +1,57 @@
+name: release
+
+# Crea una release con il binario Linux precompilato quando si pubblica un tag
+# `v*` (es. `git tag v0.1.0 && git push origin v0.1.0`). L'asset compare nella
+# pagina Releases del repository.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  linux-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Gate (fmt + clippy + test)
+        working-directory: src-tauri
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test
+
+      - name: Build release
+        run: cargo build --release --locked
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME}"
+          PKG="ascuta-desktop-${VERSION}-linux-x86_64"
+          BIN="target/release/ascuta-desktop"
+          strip "$BIN"
+          mkdir -p "dist/${PKG}"
+          cp "$BIN" "dist/${PKG}/ascuta-desktop"
+          cp README.md "dist/${PKG}/README.md"
+          tar -C dist -czf "dist/${PKG}.tar.gz" "${PKG}"
+          ( cd dist && sha256sum "${PKG}.tar.gz" > "${PKG}.tar.gz.sha256" )
+          ls -lh dist
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/ascuta-desktop-*.tar.gz
+            dist/ascuta-desktop-*.tar.gz.sha256

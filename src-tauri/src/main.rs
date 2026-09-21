@@ -164,18 +164,37 @@ fn main() -> Result<()> {
     };
 
     // Tray (native StatusNotifier via ksni — NOT Tauri tray, see PLAN §8).
-    let _tray = tray::KsniTray::new({
+    // Missing tray host (e.g. GNOME without the AppIndicator extension) must
+    // not stop the bridge from running, so failures only warn.
+    let _tray = match tray::KsniTray::new({
         let tx = tx.clone();
         move || {
             let _ = tx.send(OsEvent::QuitRequested);
         }
-    })?;
-    _tray.set_status("idle");
+    }) {
+        Ok(tray) => {
+            tray.set_status("idle");
+            Some(tray)
+        }
+        Err(e) => {
+            eprintln!("ascuta: tray unavailable ({e:#}); continuing without it");
+            None
+        }
+    };
 
     // Hotkey: X11 grab now; Wayland portal binding is the fast-follow
-    // (see hotkey.rs). Default: Ctrl+B on Win/Linux.
-    let _hotkey_mgr = hotkey::HotkeyManager::register_default(&settings)?;
-    std::thread::spawn(move || hotkey::pump_events(tx));
+    // (see hotkey.rs). Default: Ctrl+B on Win/Linux. A failed grab (Wayland,
+    // missing X11) must not stop the phone bridge either.
+    let _hotkey_mgr = match hotkey::HotkeyManager::register_default(&settings) {
+        Ok(manager) => {
+            std::thread::spawn(move || hotkey::pump_events(tx));
+            Some(manager)
+        }
+        Err(e) => {
+            eprintln!("ascuta: hotkey unavailable ({e:#}); continuing with the phone bridge only");
+            None
+        }
+    };
 
     // Injection backend (clipboard paste → keystroke fallback).
     let injector = injection::EnigoInjector::new();
