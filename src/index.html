@@ -8,51 +8,12 @@
 </head>
 <body>
   <main>
-    <h1>ascuta</h1>
-    <p class="sub">Local dictation. No account, no cloud.</p>
-
-    <section>
-      <h2>Model</h2>
-      <label><input type="radio" name="model" value="parakeet-tdt-0.6b-v2-int8" checked /> Parakeet v2 int8 — English (~640 MB)</label>
-      <label><input type="radio" name="model" value="parakeet-tdt-0.6b-v3-int8" /> Parakeet v3 int8 — 25 EU langs (~670 MB)</label>
-      <label><input type="radio" name="model" value="whisper-base-int8" /> Whisper base int8 — fallback (~150 MB)</label>
-      <label><input type="radio" name="model" value="whisper-large-v3-turbo-int8" /> Whisper turbo int8 — accuracy-first (~1 GB)</label>
-      <p id="model-state" class="state">Download state: wired in M2 (Tauri command).</p>
-    </section>
-
-    <section>
-      <h2>Language</h2>
-      <select id="language">
-        <option value="auto" selected>auto</option>
-        <option value="en">en</option>
-        <option value="de">de</option>
-        <option value="fr">fr</option>
-        <option value="es">es</option>
-        <option value="it">it</option>
-      </select>
-    </section>
-
-    <section>
-      <h2>Hotkey</h2>
-      <p>Hold-to-talk: <code id="hotkey">Ctrl+B</code> (recorder lands with the Tauri bridge; edit <code>settings.json</code> for now).</p>
-    </section>
-
-    <section>
-      <h2>Microphone</h2>
-      <select id="mic"><option>default</option></select>
-      <meter id="meter" min="0" max="100" value="0"></meter>
-      <p class="state">Live meter lands in M1.</p>
-    </section>
-
-    <section>
-      <h2>Options</h2>
-      <label><input type="checkbox" id="preserve_clipboard" checked /> Restore clipboard after paste</label>
-      <label><input type="checkbox" id="launch_at_login" /> Launch at login</label>
-    </section>
-
-    <button id="save">Save</button>
-    <p id="saved" class="state"></p>
+    <h1>Ascuta Desktop</h1>
+    <p class="sub">Private dictation, fully offline. No account, no cloud.</p>
+    <div id="banner" class="banner warn"><b>Loading…</b></div>
+    <div id="app"></div>
   </main>
+  <div id="toast"></div>
   <script src="app.js"></script>
 </body>
 </html>

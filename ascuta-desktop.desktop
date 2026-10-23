@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Ascuta Desktop
+Comment=Private offline dictation
+Exec=/home/emavgl/Projects/ascuta-desktop/run.sh
+Path=/home/emavgl/Projects/ascuta-desktop
+Terminal=false
+Icon=audio-input-microphone
+Categories=Utility;AudioVideo;

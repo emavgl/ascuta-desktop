@@ -1,196 +1,266 @@
 # Ascuta Desktop
 
-Compagno per desktop di **Ascuta** (Android). L'app sul telefono trascrive la
-voce **sul dispositivo**; Ascuta Desktop riceve il testo dal telefono e lo
-**digita al computer** come se fosse stato scritto con la tastiera.
+Desktop companion for **Ascuta** (Android). The phone app transcribes speech
+**on-device**; Ascuta Desktop receives the text from the phone and **types it on
+the computer** as if it had been written on the keyboard.
 
-Trascrizione audio e modelli restano sul telefono: al computer viaggia solo il
-testo, sulla rete locale. Niente cloud, niente account.
+Audio transcription and models stay on the phone: only text travels to the
+computer, over the local network. No cloud, no account.
 
-> **Stato: M0 (scheletro).** La *phone bridge* funziona ed è provabile.
-> La trascrizione locale sul desktop (modelli sherpa-onnx, hotkey push-to-talk,
-> HUD) è in sviluppo — vedi [`PLAN.md`](PLAN.md).
-
----
-
-## Cosa fa oggi
-
-- **Phone bridge** — riceve le trascrizioni dall'app Ascuta via Wi-Fi e le
-  digita nel campo che ha il fuoco. Abbinamento con **codice QR**.
-- **`--pair`** — modalità headless: stampa il QR nel terminale e resta in
-  ascolto, senza tray né interfaccia. È il modo più semplice per provare.
-- **`--check`** — autotest senza display, audio o rete.
-- Tray, hotkey globale (`Ctrl+B`) e HUD: scheletro già presente.
+> **Status: M0 (scaffold).** The *phone bridge* works and can be tested.
+> Local transcription on the desktop (sherpa-onnx models, push-to-talk hotkey,
+> HUD) is in development — see [`PLAN.md`](PLAN.md).
 
 ---
 
-## Requisiti (Linux)
+## What it does today
+
+- **Phone bridge** — receives transcripts from the Ascuta app over Wi-Fi and
+  types them into the focused field. Pairing via **QR code**.
+- **`--pair`** — headless mode: prints the QR in the terminal and listens,
+  without tray or UI. The simplest way to try it.
+- **`--check`** — self-test without display, audio or network.
+- Tray, global hotkey (`Ctrl+Win`, hold to talk) and HUD: scaffold in place.
+
+---
+
+## Requirements (Linux)
 
 - Linux **x86_64**.
-- Per **digitare** il testo serve una sessione **X11**. Su Wayland l'iniezione
-  da tastiera non è disponibile: il testo resta negli appunti e va incollato a
-  mano (per questo la modalità `--pair` resta comunque utile).
-- Consigliati per gli appunti: `xclip` (X11) oppure `wl-clipboard` (Wayland).
-- Il binario precompilato richiede solo `libc`; X11/Wayland vengono caricati a
-  runtime, quindi non serve installare librerie di sviluppo.
+- Typing works in **X11** and **Wayland** sessions. On Wayland Ascuta uses the
+  XDG RemoteDesktop portal; if it is unavailable, the text is left in the
+  clipboard for manual paste.
+- Recommended for the clipboard: `xclip` (X11) or `wl-clipboard` (Wayland).
+- The prebuilt binary needs a few system libraries (`libc`, ALSA, `bzip2`);
+  X11/Wayland are loaded at runtime, so no development packages are required.
+  If something is missing, `install.sh` takes care of it.
 
 ---
 
-## 1. Scaricare il progetto
-
-### Opzione A — Release precompilata (consigliata)
-
-1. Apri la pagina delle release:
-   **<https://github.com/emavgl/ascuta-desktop/releases>**
-2. Scarica `ascuta-desktop-v0.1.0-linux-x86_64.tar.gz`
-   (e, se vuoi, il file `.sha256` per verificare l'integrità).
+## Quick install (Linux)
 
 ```sh
-# verifica l'integrità (facoltativa ma consigliata)
-sha256sum -c ascuta-desktop-v0.1.0-linux-x86_64.tar.gz.sha256
-
-# estrai
-tar -xzf ascuta-desktop-v0.1.0-linux-x86_64.tar.gz
+curl -fsSL https://github.com/emavgl/ascuta-website/releases/download/desktop-latest/install.sh | bash
 ```
 
-### Opzione B — Dal sorgente
+The installer downloads the **prebuilt binary** (no source code), verifies its
+SHA-256 checksum, installs any missing system libraries, installs into
+`~/.local` (no sudo for the files), adds **Ascuta Desktop** to the menu, runs a
+self-test and, if you want, adds you to the `input` group for the global hotkey
+(e.g. `Ctrl+Win`). The speech model is downloaded by the app on first launch
+(~600 MB).
+
+Prefer downloading the package yourself:
 
 ```sh
-# strumenti di base (linker C + git)
-sudo apt update && sudo apt install -y build-essential git
+curl -fLO https://github.com/emavgl/ascuta-website/releases/download/desktop-latest/ascuta-desktop-linux-x86_64.tar.gz
+curl -fLO https://github.com/emavgl/ascuta-website/releases/download/desktop-latest/ascuta-desktop-linux-x86_64.tar.gz.sha256
+sha256sum -c ascuta-desktop-linux-x86_64.tar.gz.sha256
+tar -xzf ascuta-desktop-linux-x86_64.tar.gz
+cd ascuta-desktop-v*-linux-x86_64
+./install.sh
+```
 
-# Rust (se non è già installato)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
+Useful options: `--yes` (no questions), `--from URL` (use another package),
+`--uninstall [--purge]`, `--help`.
 
-# codice
-git clone https://github.com/emavgl/ascuta-desktop.git
+The package is built with `packaging/build-release.sh` (requires
+`libasound2-dev`) and published manually to the public website repository (see
+[Publishing a release](#publishing-a-release)). The source repository is
+private; end users only get the binary.
+
+---
+
+## macOS and Windows
+
+Same code, three systems. What changes:
+
+| | Linux | macOS | Windows |
+|---|---|---|---|
+| Package | `.tar.gz` + `install.sh` | `.dmg` with `Ascuta.app` | `.zip` + `install.ps1` |
+| Hotkey (default) | `Ctrl+Win` | `Option+Space` | `Ctrl+Win` |
+| Tray | StatusNotifier | menu bar | notification area |
+| Paste | `Shift+Insert` | `Cmd+V` | `Ctrl+V` |
+| Launch at login | `~/.config/autostart` | LaunchAgent | `Run` registry key |
+
+**macOS** — on first launch the system asks for three permissions (System
+Settings → Privacy & Security): *Microphone*, *Accessibility* (to paste) and
+*Input Monitoring* (to read the hotkey). The app is ad-hoc signed: the first
+time, open it with right-click → Open.
+
+**Windows** — no special permissions. `install.ps1` installs for the current
+user and creates a Start menu entry. SmartScreen may warn because the executable
+is not signed.
+
+The optional Gemma cleanup uses Python: on macOS/Windows you need `uv` or
+Python 3 (the *Download* button installs the runtime itself).
+
+Build from source: `cargo build --release --features "capture sherpa"`
+(macOS: `packaging/macos/build-app.sh`; Windows: `packaging/windows/build-zip.ps1`).
+
+---
+
+## 1. Downloading the project
+
+End users install the **prebuilt binary** with the one-line command above, or by
+downloading `ascuta-desktop-linux-x86_64.tar.gz` and its `.sha256` from the
+[public release page](https://github.com/emavgl/ascuta-website/releases/tag/desktop-latest).
+No source code is distributed.
+
+The source repository is private. Maintainers building locally use:
+
+```sh
+git clone git@github.com:emavgl/ascuta-desktop.git
 cd ascuta-desktop
-cargo build --release
+
+# compile and install to ~/.local (requires Rust and libasound2-dev)
+cargo build --release --locked --features "capture sherpa"
+./packaging/build-release.sh
+./dist/ascuta-desktop-v*-linux-x86_64/install.sh
 ```
 
-Il binario è in `target/release/ascuta-desktop`.
+### Publishing a release
+
+Run this from a machine authenticated with `gh` (no extra token needed):
+
+```sh
+packaging/build-release.sh v0.2.2
+
+gh release view desktop-latest -R emavgl/ascuta-website >/dev/null 2>&1 \
+  || gh release create desktop-latest -R emavgl/ascuta-website \
+       --title "Ascuta Desktop (latest)" \
+       --notes "Latest Ascuta Desktop build. Assets are replaced on every release."
+
+gh release upload desktop-latest -R emavgl/ascuta-website --clobber \
+  dist/ascuta-desktop-linux-x86_64.tar.gz \
+  dist/ascuta-desktop-linux-x86_64.tar.gz.sha256 \
+  dist/install.sh
+```
+
+`packaging/build-release.sh` also leaves the versioned package in `dist/`; the
+stable-named files above are what `install.sh` downloads.
 
 ---
 
-## 2. Installare su Linux
+## 2. Installing on Linux
 
-Con il pacchetto precompilato:
+With the prebuilt package, the quickest path is:
+
+```sh
+./install.sh
+```
+
+The script installs the binary, the bundled libraries, the desktop entry and the
+`PATH` entry. If you prefer to do it by hand:
 
 ```sh
 mkdir -p ~/.local/bin
-install -m755 \
-  ascuta-desktop-v0.1.0-linux-x86_64/ascuta-desktop \
-  ~/.local/bin/ascuta-desktop
+install -m755 ascuta-desktop-*/ascuta-desktop ~/.local/bin/ascuta-desktop
 ```
 
-Assicurati che `~/.local/bin` sia nel `PATH` (di solito lo è già):
+Make sure `~/.local/bin` is in `PATH` (it usually is):
 
 ```sh
 echo "$PATH" | tr ':' '\n' | grep -q "$HOME/.local/bin" \
   || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 ```
 
-Dal sorgente, invece:
-
-```sh
-install -m755 target/release/ascuta-desktop ~/.local/bin/ascuta-desktop
-```
-
-- **Avvio normale:** `ascuta-desktop`
-- **File impostazioni:** `~/.config/ascuta/settings.json`
-  (sovrascrivibile con la variabile `ASCUTA_CONFIG_FILE`).
+- **Normal start:** `ascuta-desktop`
+- **Settings file:** `~/.config/ascuta/settings.json`
+  (override with the `ASCUTA_CONFIG_FILE` variable).
 
 ---
 
-## 3. Come provarlo
+## 3. Trying it
 
-### 3.1 Autotest (nessun display richiesto)
+### 3.1 Self-test (no display required)
 
 ```sh
 ascuta-desktop --check
 ```
 
-Deve terminare con:
+It must end with:
 
 ```
 ascuta --check: OK (press/release/paste-hello/phone-bridge/settings-roundtrip)
 ```
 
-### 3.2 Provare la phone bridge (il caso d'uso principale)
+### 3.2 Trying the phone bridge (main use case)
 
-1. **Sul computer** avvia la modalità abbinamento:
+1. **On the computer** start pairing mode:
 
    ```sh
    ascuta-desktop --pair
    ```
 
-   Stampa un **codice QR** nel terminale e resta in ascolto sulla porta `8737`.
-   Lascia il terminale aperto; `Ctrl+C` per fermarlo.
+   It prints a **QR code** in the terminal and listens on port `8737`. Keep the
+   terminal open; use `Ctrl+C` to stop it.
 
-2. **Sul telefono** apri Ascuta e vai in
-   **Home → Invia al computer** (attiva l'interruttore) → **Abbina un computer**,
-   poi **scansiona il QR** mostrato dal computer.
+2. **On the phone** open Ascuta and go to
+   **Home → Send to computer** (turn the switch on) → **Pair a computer**, then
+   **scan the QR** shown on the computer.
 
-3. **Dettare** con Ascuta (bolla, tastiera o popup). Il testo finale viene
-   digitato sul computer nella finestra che ha il fuoco.
+3. **Dictate** with Ascuta (bubble, keyboard or popup). The final text is typed
+   on the computer into the focused window.
 
-4. **Test connessione** (Home → Invia al computer) verifica che il computer sia
-   raggiungibile.
+4. **Test connection** (Home → Send to computer) checks that the computer is
+   reachable.
 
-Note:
+Notes:
 
-- Telefono e computer devono essere sulla **stessa rete Wi-Fi**; il firewall
-  deve permettere la porta `8737`.
-- La sicurezza è locale: bind sulla LAN e token generato nel QR. Nessun dato
-  esce dalla rete locale.
-- Serve una versione recente dell'app Ascuta che includa la bridge (repo
+- Phone and computer must be on the **same Wi-Fi network**; the firewall must
+  allow port `8737`.
+- Security is local: bind on the LAN and a token generated in the QR. No data
+  leaves the local network.
+- You need a recent version of the Ascuta app that includes the bridge (repo
   `ascuta`).
 
-### 3.3 Modalità normale (desktop con display)
+### 3.3 Normal mode (desktop with a display)
 
 ```sh
 ascuta-desktop
 ```
 
-Avvia tray, hotkey globale (`Ctrl+B`, premere e tenere premuto) e HUD; la bridge
-parte solo se `bridge_enabled` è `true` in `settings.json`. Se tray o hotkey non
-sono disponibili (es. Wayland, GNOME senza estensione), il programma avvisa e
-continua.
+Starts the tray, the global hotkey (`Ctrl+Win`, hold to talk) and the HUD; the
+bridge starts only if `bridge_enabled` is `true` in `settings.json`. If the tray
+or hotkey is unavailable (e.g. Wayland, GNOME without the extension), the
+program warns and keeps running.
 
 ---
 
-## 4. Problemi comuni
+## 4. Troubleshooting
 
-| Sintomo | Causa / Soluzione |
+| Symptom | Cause / Solution |
 |---|---|
-| Il testo non viene digitato, compare `no key backend` | Sessione Wayland o senza X11: il testo resta negli appunti, incollalo manualmente. Per la digitazione usa X11. |
-| `address already in use` all'avvio | Porta `8737` occupata: cambia `bridge_port` in `~/.config/ascuta/settings.json` e riavvia (anche il QR cambierà porta). |
-| Nessuna icona nel tray su GNOME | Installa l'estensione *AppIndicator* oppure usa `--pair`. |
-| Il QR non si vede bene | Il QR usa caratteri Unicode a blocchi: serve un terminale con font monospace. |
-| Verificare il download | `sha256sum -c ascuta-desktop-*.tar.gz.sha256` |
+| Text is not typed, `no key backend` appears | The session has no key backend (e.g. restricted Wayland): the text stays in the clipboard, paste it manually. |
+| `address already in use` at startup | Port `8737` is busy: change `bridge_port` in `~/.config/ascuta/settings.json` and restart (the QR will use the new port too). |
+| No tray icon on GNOME | Install the *AppIndicator* extension or use `--pair`. |
+| The QR is hard to read | The QR uses Unicode block characters: use a terminal with a monospace font. |
+| Verifying the download | `sha256sum -c ascuta-desktop-*.tar.gz.sha256` |
 
 ---
 
-## 5. Sviluppo
+## 5. Development
 
 ```sh
 cd src-tauri
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
-cargo run -- --check   # gate headless
+cargo run -- --check   # headless gate
 ```
 
-Architettura, modelli e roadmap: [`PLAN.md`](PLAN.md).
+Architecture, models and roadmap: [`PLAN.md`](PLAN.md).
 
-Le release sono prodotte automaticamente dalla GitHub Action
-[`.github/workflows/release.yml`](.github/workflows/release.yml): pubblicando un
-tag (`git tag v0.1.0 && git push origin v0.1.0`) viene creata una release con il
-binario Linux precompilato e il checksum tra gli asset.
+The GitHub Action
+[`.github/workflows/release.yml`](.github/workflows/release.yml) builds the Linux,
+macOS and Windows packages when a tag is pushed (`git tag v0.1.0 && git push
+origin v0.1.0`) and attaches them to the private repository's release. Publishing
+the Linux binary to the public website repository is done manually — see
+[Publishing a release](#publishing-a-release).
 
 ---
 
-## Licenza
+## License
 
 MIT.

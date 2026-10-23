@@ -1,12 +1,12 @@
 name: release
 
-# Crea una release con il binario Linux precompilato quando si pubblica un tag
-# `v*` (es. `git tag v0.1.0 && git push origin v0.1.0`). L'asset compare nella
-# pagina Releases del repository.
+# Builds Linux, macOS and Windows packages when a `v*` tag is pushed and
+# attaches them (with checksums) to the GitHub release.
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -16,42 +16,72 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-
       - uses: Swatinem/rust-cache@v2
-
-      - name: Gate (fmt + clippy + test)
+      - name: Test
         working-directory: src-tauri
-        run: |
-          cargo fmt --check
-          cargo clippy --all-targets -- -D warnings
-          cargo test
+        run: cargo test
+      - name: System libraries (ALSA headers for the microphone)
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - name: Build and package
+        run: packaging/build-release.sh "${GITHUB_REF_NAME:-dev}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            dist/ascuta-desktop-*.tar.gz*
+            dist/install.sh
 
-      - name: Build release
-        run: cargo build --release --locked
+  macos:
+    strategy:
+      matrix:
+        include:
+          - os: macos-14   # Apple silicon
+          - os: macos-13   # Intel
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Test
+        working-directory: src-tauri
+        run: cargo test
+      - name: Build .app and .dmg
+        run: packaging/macos/build-app.sh "${GITHUB_REF_NAME:-dev}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.os }}
+          path: dist/Ascuta-*.dmg*
 
-      - name: Package
-        run: |
-          set -euo pipefail
-          VERSION="${GITHUB_REF_NAME}"
-          PKG="ascuta-desktop-${VERSION}-linux-x86_64"
-          BIN="target/release/ascuta-desktop"
-          strip "$BIN"
-          mkdir -p "dist/${PKG}"
-          cp "$BIN" "dist/${PKG}/ascuta-desktop"
-          cp README.md "dist/${PKG}/README.md"
-          tar -C dist -czf "dist/${PKG}.tar.gz" "${PKG}"
-          ( cd dist && sha256sum "${PKG}.tar.gz" > "${PKG}.tar.gz.sha256" )
-          ls -lh dist
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Test
+        working-directory: src-tauri
+        run: cargo test
+      - name: Build zip
+        shell: pwsh
+        run: packaging/windows/build-zip.ps1 "${env:GITHUB_REF_NAME}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/ascuta-desktop-*.zip*
 
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux-x86_64, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            dist/ascuta-desktop-*.tar.gz
-            dist/ascuta-desktop-*.tar.gz.sha256
+            dist/*

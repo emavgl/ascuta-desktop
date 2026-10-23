@@ -30,8 +30,8 @@ impl Core {
         self.phase
     }
 
-    /// Push-to-talk released. Recording → Decoding (VAD/no-speech gate
-    /// happens in M1; M0 always proceeds).
+    /// Push-to-talk released. Recording → Decoding (the VAD/no-speech gate
+    /// runs on the captured burst; no speech → `on_decoded(false)`).
     pub fn on_hotkey_released(&mut self) -> Phase {
         if self.phase == Phase::Recording {
             self.phase = Phase::Decoding;

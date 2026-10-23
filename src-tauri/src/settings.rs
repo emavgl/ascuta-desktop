@@ -16,10 +16,18 @@ pub struct Settings {
     pub model: String,
     /// BCP-47 or `auto`.
     pub language: String,
-    /// Human-readable hotkey, e.g. `Ctrl+B` (hold-to-talk).
+    /// Hold-to-talk chord, e.g. `Ctrl+Win`, `RightAlt`, `F8` (see `chord`).
     pub hotkey: String,
     pub preserve_clipboard: bool,
+    /// How transcripts reach the focused app: `type` (synthetic key
+    /// events) or `paste` (clipboard + paste shortcut).
+    #[serde(default = "default_injection_mode")]
+    pub injection_mode: String,
     pub launch_at_login: bool,
+    /// Optional LLM cleanup of each transcript (punctuation, obvious
+    /// mis-hearings). Off by default; needs the cleanup model downloaded.
+    #[serde(default)]
+    pub cleanup_enabled: bool,
     /// Phone bridge (receive transcripts over the LAN). Opt-in.
     pub bridge_enabled: bool,
     pub bridge_port: u16,
@@ -45,14 +53,31 @@ impl Default for Settings {
         Self {
             model: "parakeet-tdt-0.6b-v2-int8".to_string(),
             language: "auto".to_string(),
-            hotkey: "Ctrl+B".to_string(),
+            hotkey: default_hotkey().to_string(),
             preserve_clipboard: true,
+            injection_mode: default_injection_mode(),
             launch_at_login: false,
+            cleanup_enabled: false,
             bridge_enabled: false,
             bridge_port: DEFAULT_BRIDGE_PORT,
             bridge_token: String::new(),
         }
     }
+}
+
+/// Hold-to-talk default per platform: Ctrl+Win (Windows/Linux, like Wispr
+/// Flow), Option+Space on macOS (no Windows key there).
+pub fn default_hotkey() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "Alt+Space"
+    } else {
+        "Ctrl+Win"
+    }
+}
+
+/// Typing is the default: the transcript never touches the clipboard.
+pub fn default_injection_mode() -> String {
+    "type".to_string()
 }
 
 /// Default phone-bridge port (see PLAN §12).
@@ -107,11 +132,16 @@ fn normalize(mut s: Settings) -> Settings {
     if s.language.trim().is_empty() {
         s.language = "auto".to_string();
     }
-    if s.hotkey.trim().is_empty() {
-        s.hotkey = "Ctrl+B".to_string();
+    // Empty, unparsable or typing-key-only hotkeys fall back to the default
+    // instead of grabbing e.g. the letter W system-wide.
+    if !crate::chord::Chord::parse(&s.hotkey).is_ok_and(|c| c.is_safe()) {
+        s.hotkey = default_hotkey().to_string();
     }
     if s.bridge_port == 0 {
         s.bridge_port = DEFAULT_BRIDGE_PORT;
+    }
+    if s.injection_mode != "type" && s.injection_mode != "paste" {
+        s.injection_mode = default_injection_mode();
     }
     s
 }
@@ -150,6 +180,31 @@ mod tests {
         s.ensure_bridge_token();
         store.save(&s).unwrap();
         assert_eq!(store.read().unwrap(), s);
+    }
+
+    #[test]
+    fn valid_injection_modes_survive_normalization() {
+        for mode in ["type", "paste"] {
+            let s = normalize(Settings {
+                injection_mode: mode.to_string(),
+                ..Settings::default()
+            });
+            assert_eq!(s.injection_mode, mode);
+        }
+        let s = normalize(Settings {
+            injection_mode: "nonsense".to_string(),
+            ..Settings::default()
+        });
+        assert_eq!(s.injection_mode, "type");
+    }
+
+    #[test]
+    fn older_settings_default_to_typing() {
+        let s: Settings = serde_json::from_str(
+            r#"{"model":"parakeet-tdt-0.6b-v2-int8","language":"auto","hotkey":"Ctrl+Win","preserve_clipboard":true,"launch_at_login":false,"bridge_enabled":false,"bridge_port":8737,"bridge_token":""}"#,
+        )
+        .unwrap();
+        assert_eq!(s.injection_mode, "type");
     }
 
     #[test]

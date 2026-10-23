@@ -19,6 +19,8 @@ pub enum SttFamily {
     Parakeet,
     /// OpenAI Whisper exported to ONNX (encoder-decoder).
     Whisper,
+    /// Text LLM (`.litertlm`, LiteRT-LM) used for transcript cleanup.
+    Llm,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,6 +33,8 @@ pub struct ModelSpec {
     pub required_files: &'static [&'static str],
     pub description: &'static str,
     pub default_for_en: bool,
+    /// Lower-case hex SHA-256 of the downloaded file, when known.
+    pub sha256: Option<&'static str>,
 }
 
 pub const PARAKEET_V2_INT8: ModelSpec = ModelSpec {
@@ -47,6 +51,7 @@ pub const PARAKEET_V2_INT8: ModelSpec = ModelSpec {
     ],
     description: "NVIDIA Parakeet TDT v2 (offline NeMo transducer, English).",
     default_for_en: true,
+    sha256: None,
 };
 
 pub const PARAKEET_V3_INT8: ModelSpec = ModelSpec {
@@ -63,6 +68,7 @@ pub const PARAKEET_V3_INT8: ModelSpec = ModelSpec {
     ],
     description: "NVIDIA Parakeet TDT v3 (offline NeMo transducer, 25 European languages).",
     default_for_en: false,
+    sha256: None,
 };
 
 pub const WHISPER_BASE_INT8: ModelSpec = ModelSpec {
@@ -74,6 +80,7 @@ pub const WHISPER_BASE_INT8: ModelSpec = ModelSpec {
     required_files: &["encoder.int8.onnx", "decoder.int8.onnx", "tokens.txt"],
     description: "Whisper base int8 (99+ languages, fallback for non-EU).",
     default_for_en: false,
+    sha256: None,
 };
 
 pub const WHISPER_SMALL_INT8: ModelSpec = ModelSpec {
@@ -85,6 +92,7 @@ pub const WHISPER_SMALL_INT8: ModelSpec = ModelSpec {
     required_files: &["encoder.int8.onnx", "decoder.int8.onnx", "tokens.txt"],
     description: "Whisper small int8 (99+ languages, better accuracy, ~500MB).",
     default_for_en: false,
+    sha256: None,
 };
 
 pub const WHISPER_LARGE_V3_TURBO_INT8: ModelSpec = ModelSpec {
@@ -96,7 +104,26 @@ pub const WHISPER_LARGE_V3_TURBO_INT8: ModelSpec = ModelSpec {
     required_files: &["encoder.int8.onnx", "decoder.int8.onnx", "tokens.txt"],
     description: "Whisper large-v3-turbo int8 (accuracy-first, ~1GB, warn on RAM).",
     default_for_en: false,
+    sha256: None,
 };
+
+/// Gemma 4 E2B for LiteRT-LM — the exact file the Android app downloads and
+/// runs for its cleanup pass (litert-community build, ~2.6 GB).
+pub const GEMMA_4_E2B_LITERT: ModelSpec = ModelSpec {
+    id: "gemma-4-e2b-it-litertlm",
+    family: SttFamily::Llm,
+    kind: ModelKind::SttOffline,
+    archive_url: "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
+    extracted_dir: "gemma-4-E2B-it-litert-lm",
+    required_files: &["gemma-4-E2B-it.litertlm"],
+    description: "Gemma 4 E2B via LiteRT-LM (transcript cleanup, ~2.6 GB, optional).",
+    default_for_en: false,
+    sha256: Some("181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c"),
+};
+
+/// Optional text-cleanup models (not speech recognizers).
+pub const LLM_MODELS: &[ModelSpec] = &[GEMMA_4_E2B_LITERT];
+pub const DEFAULT_CLEANUP_MODEL: &str = "gemma-4-e2b-it-litertlm";
 
 pub const ALL_MODELS: &[ModelSpec] = &[
     PARAKEET_V2_INT8,
@@ -111,12 +138,18 @@ pub const DEFAULT_STT_MODEL: &str = "parakeet-tdt-0.6b-v2-int8";
 /// Bundled VAD model file (shipped with the app, not downloaded).
 pub const SILERO_VAD_ASSET: &str = "silero_vad.onnx";
 
+/// Any downloadable model (speech or cleanup).
 pub fn find_model(id: &str) -> Option<ModelSpec> {
-    ALL_MODELS.iter().find(|m| m.id == id).copied()
+    ALL_MODELS
+        .iter()
+        .chain(LLM_MODELS.iter())
+        .find(|m| m.id == id)
+        .copied()
 }
 
+/// A speech-recognition model id (what `settings.model` may hold).
 pub fn is_known_model(id: &str) -> bool {
-    find_model(id).is_some()
+    ALL_MODELS.iter().any(|m| m.id == id)
 }
 
 /// Resolve `<modelsDir>/<extractedDir>` for a model id.

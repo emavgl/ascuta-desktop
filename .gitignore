@@ -13,3 +13,4 @@ models/
 settings.json
 *.db
 *.sqlite
+dist/

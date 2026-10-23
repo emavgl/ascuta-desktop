@@ -25,10 +25,20 @@ pub struct HotkeyManager {
 }
 
 impl HotkeyManager {
-    /// Register the user's hold-to-talk hotkey (default Ctrl+B).
+    /// X11-grab fallback for "modifiers + key" chords. Modifier-only chords
+    /// (`Ctrl+Win`, `RightAlt`) cannot be grabbed and are rejected rather
+    /// than misparsed.
     pub fn register_default(settings: &Settings) -> Result<Self> {
+        let chord = crate::chord::Chord::parse(&settings.hotkey)
+            .map_err(|e| anyhow::anyhow!("invalid hotkey: {e}"))?;
+        let spec = chord.legacy_spec().ok_or_else(|| {
+            anyhow::anyhow!(
+                "{chord} needs keyboard access (join the `input` group); \
+                 a modifier-only hotkey cannot use the X11 fallback"
+            )
+        })?;
         let manager = GlobalHotKeyManager::new().context("hotkey manager")?;
-        let hotkey = parse_hotkey(&settings.hotkey)?;
+        let hotkey = parse_hotkey(&spec)?;
         let id = hotkey.id();
         manager.register(hotkey).context("register global hotkey")?;
         eprintln!("ascuta: hotkey registered: {}", settings.hotkey);
@@ -44,7 +54,7 @@ impl HotkeyManager {
     }
 }
 
-fn parse_hotkey(spec: &str) -> Result<HotKey> {
+pub(crate) fn parse_hotkey(spec: &str) -> Result<HotKey> {
     // Accept `Ctrl+B` / `ctrl+b` / `Alt+Space`, plus a couple of aliases
     // the `global-hotkey` parser is strict about.
     let normalized = spec
@@ -57,6 +67,43 @@ fn parse_hotkey(spec: &str) -> Result<HotKey> {
         return Ok(HotKey::new(Some(Modifiers::ALT), Code::Space));
     }
     HotKey::from_str(&normalized).with_context(|| format!("parse hotkey {spec:?}"))
+}
+
+/// Hold-to-talk through the chord engine (Whisper-Flow style: modifier-only
+/// chords such as `Ctrl+Win` or `Right Alt` are fine). Spawns the key
+/// listener plus a tracker thread that emits `HotkeyPressed/Released`.
+/// Returns how many keyboards are watched.
+pub fn start_chord_listener(
+    spec: &str,
+    tx: mpsc::Sender<super::OsEvent>,
+) -> Result<usize> {
+    let chord = crate::chord::Chord::parse(spec)
+        .map_err(|e| anyhow::anyhow!("invalid hotkey {spec:?}: {e}"))?;
+    let (key_tx, key_rx) = mpsc::channel();
+    let watched = crate::keysource::start(key_tx)?;
+    eprintln!("ascuta: hotkey {chord} (hold to talk), {watched} keyboard(s)");
+    std::thread::Builder::new()
+        .name("ascuta-hotkey".into())
+        .spawn(move || {
+            let mut tracker = crate::chord::Tracker::new(chord);
+            for raw in key_rx {
+                if raw.key == "Escape" && raw.down {
+                    // Cancels an active dictation (ignored when idle).
+                    let _ = tx.send(super::OsEvent::CancelDictation);
+                }
+                if let Some(pressed) = tracker.on_key(raw.key, raw.down) {
+                    let ev = if pressed {
+                        super::OsEvent::HotkeyPressed
+                    } else {
+                        super::OsEvent::HotkeyReleased
+                    };
+                    if tx.send(ev).is_err() {
+                        break;
+                    }
+                }
+            }
+        })?;
+    Ok(watched)
 }
 
 /// Forward press/release events for our hotkey id into the winit loop.
