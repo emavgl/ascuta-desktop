@@ -49,5 +49,6 @@ Compress-Archive -Path $dir -DestinationPath "dist\$pkg.zip" -Force
 Copy-Item "dist\$pkg.zip" "dist\ascuta-desktop-windows-x86_64.zip" -Force
 (Get-FileHash "dist\ascuta-desktop-windows-x86_64.zip" -Algorithm SHA256).Hash.ToLower() + "  ascuta-desktop-windows-x86_64.zip" |
   Out-File "dist\ascuta-desktop-windows-x86_64.zip.sha256" -Encoding ascii
+Copy-Item packaging\windows\install-windows.ps1 "dist\install-windows.ps1" -Force
 
-Get-Item "dist\$pkg.zip", "dist\ascuta-desktop-windows-x86_64.zip"
+Get-Item "dist\$pkg.zip", "dist\ascuta-desktop-windows-x86_64.zip", "dist\install-windows.ps1"

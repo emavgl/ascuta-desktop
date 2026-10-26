@@ -69,6 +69,19 @@ The package is built with `packaging/build-release.sh` (requires
 [Publishing a release](#publishing-a-release)). The source repository is
 private; end users only get the binary.
 
+## Quick install (Windows)
+
+In **Windows PowerShell**:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://github.com/emavgl/ascuta-website/releases/download/desktop-latest/install-windows.ps1 | iex"
+```
+
+It downloads `ascuta-desktop-windows-x86_64.zip`, verifies the SHA-256, installs
+for the current user in `%LOCALAPPDATA%\Ascuta`, bundles the MSVC runtime, adds
+a Start menu entry and runs the self-test. Prefer doing it by hand? Download the
+zip (and `.sha256`), unzip it and run `install.cmd`.
+
 ---
 
 ## macOS and Windows
@@ -139,8 +152,20 @@ gh release upload desktop-latest -R emavgl/ascuta-website --clobber \
   dist/install.sh
 ```
 
-`packaging/build-release.sh` also leaves the versioned package in `dist/`; the
-stable-named files above are what `install.sh` downloads.
+For Windows, build the zip on a Windows machine (or with `cargo xwin`):
+
+```powershell
+packaging/windows/build-zip.ps1 v0.2.2
+
+gh release upload desktop-latest -R emavgl/ascuta-website --clobber `
+  dist/ascuta-desktop-windows-x86_64.zip `
+  dist/ascuta-desktop-windows-x86_64.zip.sha256 `
+  dist/install-windows.ps1
+```
+
+`packaging/build-release.sh` and `packaging/windows/build-zip.ps1` also leave
+the versioned packages in `dist/`; the stable-named files above are what the
+installers download.
 
 ---
 
