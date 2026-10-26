@@ -39,6 +39,7 @@ if ($crt) {
   Write-Warning "MSVC runtime DLLs not found; users may need the Visual C++ Redistributable."
 }
 
+Copy-Item packaging\windows\app.ico $dir
 Copy-Item packaging\windows\install.ps1 $dir
 Copy-Item packaging\windows\install.cmd $dir
 Copy-Item README.md $dir

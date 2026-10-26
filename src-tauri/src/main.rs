@@ -553,8 +553,8 @@ fn attach_console_for_cli() {
         CreateFileW, FILE_GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
     };
     use windows_sys::Win32::System::Console::{
-        AllocConsole, AttachConsole, SetStdHandle, ATTACH_PARENT_PROCESS, STD_ERROR_HANDLE,
-        STD_OUTPUT_HANDLE,
+        AllocConsole, AttachConsole, GetStdHandle, SetStdHandle, ATTACH_PARENT_PROCESS,
+        STD_ERROR_HANDLE, STD_OUTPUT_HANDLE,
     };
 
     // "CONOUT$" as UTF-16, NUL-terminated.
@@ -570,6 +570,12 @@ fn attach_console_for_cli() {
     ];
 
     unsafe {
+        // When the caller already redirected stdout/stderr (a pipe or a file),
+        // keep those handles: no console window is needed.
+        let current = GetStdHandle(STD_OUTPUT_HANDLE);
+        if !current.is_null() && current != INVALID_HANDLE_VALUE {
+            return;
+        }
         if AttachConsole(ATTACH_PARENT_PROCESS) == 0 {
             AllocConsole();
         }
