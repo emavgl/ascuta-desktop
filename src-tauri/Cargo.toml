@@ -57,7 +57,7 @@ atspi = { version = "0.30", default-features = false, features = ["connection", 
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_UI_WindowsAndMessaging"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 rdev = "0.5"

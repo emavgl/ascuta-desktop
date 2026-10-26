@@ -88,9 +88,11 @@ Settings → Privacy & Security): *Microphone*, *Accessibility* (to paste) and
 *Input Monitoring* (to read the hotkey). The app is ad-hoc signed: the first
 time, open it with right-click → Open.
 
-**Windows** — no special permissions. `install.ps1` installs for the current
-user and creates a Start menu entry. SmartScreen may warn because the executable
-is not signed.
+**Windows** — no special permissions. Unzip the package and run `install.cmd`
+(or right-click `install.ps1` → *Run with PowerShell*): it installs for the
+current user and creates a Start menu entry. The MSVC runtime is bundled, so the
+Visual C++ Redistributable is not required. SmartScreen may warn because the
+executable is not signed.
 
 The optional Gemma cleanup uses Python: on macOS/Windows you need `uv` or
 Python 3 (the *Download* button installs the runtime itself).

@@ -161,10 +161,8 @@ fn apply_theme(ctx: &egui::Context) {
             "system-ui".into(),
             std::sync::Arc::new(egui::FontData::from_owned(bytes)),
         );
-        for fam in [egui::FontFamily::Proportional] {
-            if let Some(list) = fonts.families.get_mut(&fam) {
-                list.insert(0, "system-ui".into());
-            }
+        if let Some(list) = fonts.families.get_mut(&egui::FontFamily::Proportional) {
+            list.insert(0, "system-ui".into());
         }
         ctx.set_fonts(fonts);
     }
@@ -683,14 +681,12 @@ impl SettingsApp {
         }
         row(ui, "Port", "Your firewall must allow it", |ui| {
             let r = ui.add(egui::DragValue::new(&mut self.port).range(1024..=65535));
-            if r.drag_stopped() || r.lost_focus() {
-                if self.port != server_port {
-                    self.post(
-                        "/api/settings",
-                        json!({"bridge_port": self.port}),
-                        "Saved — restart Ascuta to apply",
-                    );
-                }
+            if (r.drag_stopped() || r.lost_focus()) && self.port != server_port {
+                self.post(
+                    "/api/settings",
+                    json!({"bridge_port": self.port}),
+                    "Saved — restart Ascuta to apply",
+                );
             }
         });
         if let Some(uri) = st["pairing"]["uri"].as_str() {

@@ -13,6 +13,7 @@
 //! behind fakes; not-yet-wired milestone APIs are `allow(dead_code)` until
 //! their worker lands rather than breaking the gate.
 
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 #![allow(dead_code)]
 
 mod audio;
@@ -541,7 +542,58 @@ fn build_event_loop() -> Result<EventLoop<()>> {
     Ok(builder.build()?)
 }
 
+/// Release builds on Windows use the GUI subsystem (no console window when
+/// started from the tray/Start menu). CLI modes attach to the parent terminal
+/// so `--check`, `--pair` and the debug commands still print normally.
+#[cfg(all(windows, not(debug_assertions)))]
+fn attach_console_for_cli() {
+    use std::ptr;
+    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+    use windows_sys::Win32::Storage::FileSystem::{
+        CreateFileW, FILE_GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+    };
+    use windows_sys::Win32::System::Console::{
+        AllocConsole, AttachConsole, SetStdHandle, ATTACH_PARENT_PROCESS, STD_ERROR_HANDLE,
+        STD_OUTPUT_HANDLE,
+    };
+
+    // "CONOUT$" as UTF-16, NUL-terminated.
+    const CONOUT: [u16; 8] = [
+        b'C' as u16,
+        b'O' as u16,
+        b'N' as u16,
+        b'O' as u16,
+        b'U' as u16,
+        b'T' as u16,
+        b'$' as u16,
+        0,
+    ];
+
+    unsafe {
+        if AttachConsole(ATTACH_PARENT_PROCESS) == 0 {
+            AllocConsole();
+        }
+        let handle = CreateFileW(
+            CONOUT.as_ptr(),
+            FILE_GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            ptr::null(),
+            OPEN_EXISTING,
+            0,
+            ptr::null_mut(),
+        );
+        if handle != INVALID_HANDLE_VALUE {
+            SetStdHandle(STD_OUTPUT_HANDLE, handle);
+            SetStdHandle(STD_ERROR_HANDLE, handle);
+        }
+    }
+}
+
 fn main() -> Result<()> {
+    #[cfg(all(windows, not(debug_assertions)))]
+    if std::env::args().skip(1).any(|a| a != "--gui") {
+        attach_console_for_cli();
+    }
     let args: Vec<String> = std::env::args().collect();
     #[cfg(target_os = "linux")]
     if args.iter().any(|a| a == "--key-helper") {
@@ -787,8 +839,10 @@ fn transcribe_file(path: Option<&str>) -> Result<()> {
         let rate = u32::from_le_bytes(bytes[24..28].try_into()?);
         let channels = u16::from_le_bytes(bytes[22..24].try_into()?) as usize;
         let data = bytes[44..]
-            .chunks_exact(2)
-            .map(|b| i16::from_le_bytes([b[0], b[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| i16::from_le_bytes(*b))
             .step_by(channels.max(1))
             .collect::<Vec<_>>();
         let pcm = if rate == 16_000 {

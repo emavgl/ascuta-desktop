@@ -538,8 +538,10 @@ mod tests {
     fn rejects_invalid_settings_and_keeps_token() {
         let d = tempfile::tempdir().unwrap();
         let c = ctx(d.path());
-        let mut s = settings::Settings::default();
-        s.bridge_token = "keepme".into();
+        let s = settings::Settings {
+            bridge_token: "keepme".into(),
+            ..settings::Settings::default()
+        };
         c.store.save(&s).unwrap();
         for bad in [
             r#"{"model":"nope"}"#,

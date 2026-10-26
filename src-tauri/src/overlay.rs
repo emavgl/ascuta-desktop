@@ -361,7 +361,7 @@ impl WinitOverlay {
 
 /// Premultiplied ARGB.
 fn argb(a: u8, r: u8, g: u8, b: u8) -> u32 {
-    let m = |c: u8| (c as u32 * a as u32 / 255) as u32;
+    let m = |c: u8| c as u32 * a as u32 / 255;
     ((a as u32) << 24) | (m(r) << 16) | (m(g) << 8) | m(b)
 }
 
