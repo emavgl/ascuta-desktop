@@ -35,6 +35,16 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Remove stale sherpa libraries from the restored cache
+        # sherpa-rs-sys skips the copy when the destination exists. A dangling
+        # symlink restored from the target cache makes `exists()` false, the
+        # hard link fail with EEXIST and the copy follow the dead link.
+        run: |
+          if [ -d target ]; then
+            find target -maxdepth 3 \( -name 'libonnxruntime.*' -o -name 'libsherpa-onnx-*' \) -exec rm -f {} +
+          fi
+          mkdir -p target/debug/deps target/release/deps
+
       - name: Gate (fmt + clippy + test)
         working-directory: src-tauri
         run: |
@@ -68,6 +78,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Remove stale sherpa libraries from the restored cache
+        run: |
+          if [ -d target ]; then
+            find target -maxdepth 3 \( -name 'libonnxruntime.*' -o -name 'libsherpa-onnx-*' \) -exec rm -f {} +
+          fi
+          mkdir -p target/debug/deps target/release/deps
+
       - name: Test
         working-directory: src-tauri
         run: cargo test --locked
@@ -89,6 +106,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
+
+      - name: Remove stale sherpa libraries from the restored cache
+        shell: pwsh
+        run: |
+          Get-ChildItem target -Recurse -Depth 3 -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^(onnxruntime.*|sherpa-onnx-.*|cargs)\.dll$' } |
+            Remove-Item -Force
+          New-Item -ItemType Directory -Force target\release\deps | Out-Null
 
       - name: Test
         working-directory: src-tauri

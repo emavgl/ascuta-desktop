@@ -74,6 +74,16 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Remove stale sherpa libraries from the restored cache
+        # sherpa-rs-sys skips the copy when the destination exists. A dangling
+        # symlink restored from the target cache makes `exists()` false, the
+        # hard link fail with EEXIST and the copy follow the dead link.
+        run: |
+          if [ -d target ]; then
+            find target -maxdepth 3 \( -name 'libonnxruntime.*' -o -name 'libsherpa-onnx-*' \) -exec rm -f {} +
+          fi
+          mkdir -p target/debug/deps target/release/deps
+
       - name: clippy (capture + sherpa)
         run: cargo clippy --all-targets --features "capture sherpa" -- -D warnings
         working-directory: src-tauri
