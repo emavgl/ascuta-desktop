@@ -80,7 +80,12 @@ jobs:
         # hard link fail with EEXIST and the copy follow the dead link.
         run: |
           if [ -d target ]; then
+            # Drop the copied libraries and the build-script fingerprint, so
+            # sherpa-rs-sys runs again and re-copies them into the profile and
+            # deps directories. Keeping the fingerprint would leave cargo
+            # linking against libraries that no longer exist.
             find target -maxdepth 3 \( -name 'libonnxruntime.*' -o -name 'libsherpa-onnx-*' \) -exec rm -f {} +
+            rm -rf target/*/build/sherpa-rs-* target/*/.fingerprint/sherpa-rs-*
           fi
           mkdir -p target/debug/deps target/release/deps
 

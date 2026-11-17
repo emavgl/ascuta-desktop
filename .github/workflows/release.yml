@@ -41,7 +41,12 @@ jobs:
         # hard link fail with EEXIST and the copy follow the dead link.
         run: |
           if [ -d target ]; then
+            # Drop the copied libraries and the build-script fingerprint, so
+            # sherpa-rs-sys runs again and re-copies them into the profile and
+            # deps directories. Keeping the fingerprint would leave cargo
+            # linking against libraries that no longer exist.
             find target -maxdepth 3 \( -name 'libonnxruntime.*' -o -name 'libsherpa-onnx-*' \) -exec rm -f {} +
+            rm -rf target/*/build/sherpa-rs-* target/*/.fingerprint/sherpa-rs-*
           fi
           mkdir -p target/debug/deps target/release/deps
 
@@ -81,7 +86,12 @@ jobs:
       - name: Remove stale sherpa libraries from the restored cache
         run: |
           if [ -d target ]; then
+            # Drop the copied libraries and the build-script fingerprint, so
+            # sherpa-rs-sys runs again and re-copies them into the profile and
+            # deps directories. Keeping the fingerprint would leave cargo
+            # linking against libraries that no longer exist.
             find target -maxdepth 3 \( -name 'libonnxruntime.*' -o -name 'libsherpa-onnx-*' \) -exec rm -f {} +
+            rm -rf target/*/build/sherpa-rs-* target/*/.fingerprint/sherpa-rs-*
           fi
           mkdir -p target/debug/deps target/release/deps
 
@@ -110,9 +120,14 @@ jobs:
       - name: Remove stale sherpa libraries from the restored cache
         shell: pwsh
         run: |
+          # Drop the copied DLLs and the build-script fingerprint, so
+          # sherpa-rs-sys runs again and re-copies them; otherwise cargo links
+          # against libraries that no longer exist.
           Get-ChildItem target -Recurse -Depth 3 -File -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -match '^(onnxruntime.*|sherpa-onnx-.*|cargs)\.dll$' } |
             Remove-Item -Force
+          Remove-Item -Recurse -Force target\*\build\sherpa-rs-* -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force target\*\.fingerprint\sherpa-rs-* -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force target\release\deps | Out-Null
 
       - name: Test
