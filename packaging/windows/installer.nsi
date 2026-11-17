@@ -13,7 +13,7 @@ BrandingText "Ascuta Desktop"
 !include "LogicLib.nsh"
 
 !ifndef VERSION
-  !define VERSION "0.2.4"
+  !define VERSION "0.2.5"
 !endif
 !ifndef SOURCE_DIR
   !define SOURCE_DIR "..\..\dist\ascuta-desktop-v${VERSION}-windows-x86_64"

@@ -18,7 +18,21 @@ $stable = Join-Path $root "dist\ascuta-desktop-windows-x86_64-setup.exe"
 if (-not (Test-Path (Join-Path $src "ascuta-desktop.exe"))) {
   throw "$src not found; run packaging\windows\build-zip.ps1 first"
 }
-$makensis = Get-Command makensis -ErrorAction SilentlyContinue
+$makensis = $null
+$cmd = Get-Command makensis -ErrorAction SilentlyContinue
+if ($cmd) {
+  $makensis = $cmd.Source
+} else {
+  # The Chocolatey package installs NSIS but does not shim makensis.
+  $candidates = @(
+    (Join-Path ${env:ProgramFiles(x86)} "NSIS\makensis.exe"),
+    (Join-Path $env:ProgramFiles "NSIS\makensis.exe"),
+    "C:\ProgramData\chocolatey\bin\makensis.exe"
+  )
+  foreach ($candidate in $candidates) {
+    if (Test-Path $candidate) { $makensis = $candidate; break }
+  }
+}
 if (-not $makensis) {
   throw "makensis not found; install NSIS 3 and run again"
 }
@@ -26,7 +40,7 @@ if (-not $makensis) {
 Copy-Item packaging\windows\app.ico $src -Force
 Push-Location packaging\windows
 try {
-  & $makensis.Source /V2 "-DVERSION=$num" "-DSOURCE_DIR=$src" "-DOUTFILE=$out" installer.nsi
+  & $makensis /V2 "-DVERSION=$num" "-DSOURCE_DIR=$src" "-DOUTFILE=$out" installer.nsi
   if ($LASTEXITCODE -ne 0) { throw "makensis failed with exit code $LASTEXITCODE" }
 }
 finally {
