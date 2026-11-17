@@ -94,7 +94,13 @@ pub fn accept_cleaned(original: &str, cleaned: &str) -> Option<String> {
     }
     // Labels such as "Output:" / "Corrected:" at the start.
     let lower = c.to_lowercase();
-    for label in ["output:", "corrected:", "corrected text:", "transcript:", "result:"] {
+    for label in [
+        "output:",
+        "corrected:",
+        "corrected text:",
+        "transcript:",
+        "result:",
+    ] {
         if lower.starts_with(label) && !original.to_lowercase().starts_with(label) {
             return None;
         }
@@ -151,15 +157,16 @@ impl CleanWorker {
                 };
                 while let Ok(job) = rx.recv() {
                     let started = std::time::Instant::now();
-                    let cleaned = engine.as_mut().and_then(|e| {
-                        match e.clean(&job.text, &job.language) {
-                            Ok(t) => accept_cleaned(&job.text, &t),
-                            Err(err) => {
-                                eprintln!("ascuta: cleanup failed: {err:#}");
-                                None
-                            }
-                        }
-                    });
+                    let cleaned =
+                        engine
+                            .as_mut()
+                            .and_then(|e| match e.clean(&job.text, &job.language) {
+                                Ok(t) => accept_cleaned(&job.text, &t),
+                                Err(err) => {
+                                    eprintln!("ascuta: cleanup failed: {err:#}");
+                                    None
+                                }
+                            });
                     eprintln!(
                         "ascuta: cleanup {} in {:.1}s",
                         if cleaned.is_some() { "ok" } else { "skipped" },
@@ -230,12 +237,18 @@ pub fn ensure_runtime() -> Result<()> {
         if !out.status.success() {
             anyhow::bail!(
                 "{}",
-                String::from_utf8_lossy(&out.stderr).lines().last().unwrap_or("command failed")
+                String::from_utf8_lossy(&out.stderr)
+                    .lines()
+                    .last()
+                    .unwrap_or("command failed")
             );
         }
         Ok(())
     };
-    let uv = Command::new("uv").arg("--version").output().is_ok_and(|o| o.status.success());
+    let uv = Command::new("uv")
+        .arg("--version")
+        .output()
+        .is_ok_and(|o| o.status.success());
     if uv {
         run(Command::new("uv").arg("venv").arg("-q").arg(&dir))?;
         run(Command::new("uv")
@@ -245,13 +258,7 @@ pub fn ensure_runtime() -> Result<()> {
         let py = if cfg!(windows) { "python" } else { "python3" };
         run(Command::new(py).args(["-m", "venv"]).arg(&dir))
             .map_err(|e| anyhow!("python3 -m venv failed ({e}); install python3-venv or uv"))?;
-        run(Command::new(runtime_python()).args([
-            "-m",
-            "pip",
-            "install",
-            "-q",
-            "litert-lm-api",
-        ]))?;
+        run(Command::new(runtime_python()).args(["-m", "pip", "install", "-q", "litert-lm-api"]))?;
     }
     std::fs::write(dir.join(".ascuta-ready"), b"ok")?;
     Ok(())
@@ -287,8 +294,14 @@ impl LiteRtCleaner {
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
             .spawn()?;
-        let stdin = child.stdin.take().ok_or_else(|| anyhow!("no sidecar stdin"))?;
-        let stdout = child.stdout.take().ok_or_else(|| anyhow!("no sidecar stdout"))?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| anyhow!("no sidecar stdin"))?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| anyhow!("no sidecar stdout"))?;
         let (tx, rx) = std::sync::mpsc::channel::<String>();
         std::thread::spawn(move || {
             for line in BufReader::new(stdout).lines().map_while(Result::ok) {
@@ -335,7 +348,10 @@ impl Cleaner for LiteRtCleaner {
         if let Some(e) = v.get("error").and_then(|e| e.as_str()) {
             anyhow::bail!("{e}");
         }
-        Ok(v.get("text").and_then(|t| t.as_str()).unwrap_or("").to_string())
+        Ok(v.get("text")
+            .and_then(|t| t.as_str())
+            .unwrap_or("")
+            .to_string())
     }
 }
 

@@ -1,305 +1,187 @@
 # Ascuta Desktop
 
-Desktop companion for **Ascuta** (Android). The phone app transcribes speech
-**on-device**; Ascuta Desktop receives the text from the phone and **types it on
-the computer** as if it had been written on the keyboard.
+Offline dictation for your computer. Hold a hotkey, speak, release — the text is
+typed into whatever app has focus.
 
-Audio transcription and models stay on the phone: only text travels to the
-computer, over the local network. No cloud, no account.
+Speech recognition runs **on your machine** with [sherpa-onnx][sherpa]
+(Parakeet or Whisper). No account, no cloud, no telemetry. The app is also the
+desktop companion of [Ascuta for Android][android]: the phone can send finished
+transcripts here over Wi-Fi, which gives any computer a microphone.
 
-> **Status: M0 (scaffold).** The *phone bridge* works and can be tested.
-> Local transcription on the desktop (sherpa-onnx models, push-to-talk hotkey,
-> HUD) is in development — see [`PLAN.md`](PLAN.md).
+[sherpa]: https://github.com/k2-fsa/sherpa-onnx
+[android]: https://play.google.com/store/apps/details?id=eu.viglianisi.ascuta
 
----
+## Features
 
-## What it does today
+- **Push-to-talk dictation.** Hold a key chord (default `Ctrl+Win`, `Option+Space`
+  on macOS), speak, release. Modifier-only chords work on X11, Wayland, Windows
+  and macOS.
+- **Fully offline STT.** Parakeet TDT v2 (English) or v3 (25 European
+  languages) for speed and punctuation; Whisper base / small / large-v3-turbo
+  for 99+ languages. CPU only — no GPU or CUDA required.
+- **Silero VAD.** Silence is trimmed before decoding, and a recording with no
+  speech is discarded instead of pasted.
+- **Optional local cleanup.** Gemma 4 E2B through LiteRT-LM fixes punctuation
+  and obvious mis-hearings. Off by default, runs locally, needs Python (`uv` or
+  `python3-venv`).
+- **Injection that fits the platform.** Synthetic key events, or clipboard +
+  paste when that is more reliable (Wayland falls back to the XDG RemoteDesktop
+  portal, and to the clipboard when no portal is available).
+- **Phone bridge.** Pair the Android app with a QR code; every finished
+  transcript is typed here. Audio never leaves the phone.
+- Tray icon, settings window, launch at login, no runtime dependencies beyond
+  the bundled libraries.
 
-- **Phone bridge** — receives transcripts from the Ascuta app over Wi-Fi and
-  types them into the focused field. Pairing via **QR code**.
-- **`--pair`** — headless mode: prints the QR in the terminal and listens,
-  without tray or UI. The simplest way to try it.
-- **`--check`** — self-test without display, audio or network.
-- Tray, global hotkey (`Ctrl+Win`, hold to talk) and HUD: scaffold in place.
+## Install
 
----
+### Linux (x86_64)
 
-## Requirements (Linux)
-
-- Linux **x86_64**.
-- Typing works in **X11** and **Wayland** sessions. On Wayland Ascuta uses the
-  XDG RemoteDesktop portal; if it is unavailable, the text is left in the
-  clipboard for manual paste.
-- Recommended for the clipboard: `xclip` (X11) or `wl-clipboard` (Wayland).
-- The prebuilt binary needs a few system libraries (`libc`, ALSA, `bzip2`);
-  X11/Wayland are loaded at runtime, so no development packages are required.
-  If something is missing, `install.sh` takes care of it.
-
----
-
-## Quick install (Linux)
+One line, verifies the checksum and installs into `~/.local` (no `sudo` for the
+files; system libraries are installed with your package manager if missing):
 
 ```sh
-curl -fsSL https://github.com/emavgl/ascuta-website/releases/download/desktop-latest/install.sh | bash
+curl -fsSL https://github.com/emavgl/ascuta-desktop/releases/latest/download/install.sh | bash
 ```
 
-The installer downloads the **prebuilt binary** (no source code), verifies its
-SHA-256 checksum, installs any missing system libraries, installs into
-`~/.local` (no sudo for the files), adds **Ascuta Desktop** to the menu, runs a
-self-test and, if you want, adds you to the `input` group for the global hotkey
-(e.g. `Ctrl+Win`). The speech model is downloaded by the app on first launch
-(~600 MB).
-
-Prefer downloading the package yourself:
+Or download the tarball yourself:
 
 ```sh
-curl -fLO https://github.com/emavgl/ascuta-website/releases/download/desktop-latest/ascuta-desktop-linux-x86_64.tar.gz
-curl -fLO https://github.com/emavgl/ascuta-website/releases/download/desktop-latest/ascuta-desktop-linux-x86_64.tar.gz.sha256
+base=https://github.com/emavgl/ascuta-desktop/releases/latest/download
+curl -fLO "$base/ascuta-desktop-linux-x86_64.tar.gz"
+curl -fLO "$base/ascuta-desktop-linux-x86_64.tar.gz.sha256"
 sha256sum -c ascuta-desktop-linux-x86_64.tar.gz.sha256
 tar -xzf ascuta-desktop-linux-x86_64.tar.gz
-cd ascuta-desktop-v*-linux-x86_64
-./install.sh
+cd ascuta-desktop-v*-linux-x86_64 && ./install.sh
 ```
 
-Useful options: `--yes` (no questions), `--from URL` (use another package),
-`--uninstall [--purge]`, `--help`.
+The global hotkey reads keyboards through `/dev/input`, so the installer offers
+to add you to the `input` group (log out and back in afterwards). On Wayland the
+HUD uses a layer-shell surface and paste goes through the desktop portal; on
+GNOME, install the AppIndicator extension for the tray icon.
 
-The package is built with `packaging/build-release.sh` (requires
-`libasound2-dev`) and published manually to the public website repository (see
-[Publishing a release](#publishing-a-release)). The source repository is
-private; end users only get the binary.
+### Windows (10/11, x86_64)
 
-## Quick install (Windows)
+Download and run
+[`ascuta-desktop-windows-x86_64-setup.exe`](https://github.com/emavgl/ascuta-desktop/releases/latest/download/ascuta-desktop-windows-x86_64-setup.exe).
+It installs per-user in `%LOCALAPPDATA%\Ascuta`, needs no administrator rights,
+bundles the MSVC runtime and registers an uninstaller. SmartScreen may warn
+because the executable is not code-signed.
 
-Download and run the installer:
-
-```
-https://github.com/emavgl/ascuta-website/releases/download/desktop-latest/ascuta-desktop-windows-x86_64-setup.exe
-```
-
-It installs for the current user in `%LOCALAPPDATA%\Ascuta` (no admin rights),
-bundles the MSVC runtime, adds a Start menu entry and an uninstaller under
-*Settings → Apps*, and runs the self-test. The checksum is published as
-`ascuta-desktop-windows-x86_64-setup.exe.sha256`.
-
-Prefer PowerShell? The one-liner downloads the portable zip, verifies it and
-runs the same per-user install:
+PowerShell alternative (portable zip + per-user install):
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://github.com/emavgl/ascuta-website/releases/download/desktop-latest/install-windows.ps1 | iex"
+irm https://github.com/emavgl/ascuta-desktop/releases/latest/download/install-windows.ps1 | iex
 ```
 
----
+### macOS (12+, Apple silicon and Intel)
 
-## macOS and Windows
+Download the `.dmg` from the [releases page][releases] (the file name ends in
+`-macos-arm64.dmg` or `-macos-x86_64.dmg`), open it and drag **Ascuta** to
+*Applications*. The app is ad-hoc signed: the first time, open it with
+right-click → **Open**.
 
-Same code, three systems. What changes:
+macOS asks for three permissions: **Microphone**, **Accessibility** (to paste)
+and **Input Monitoring** (to read the hotkey).
 
-| | Linux | macOS | Windows |
-|---|---|---|---|
-| Package | `.tar.gz` + `install.sh` | `.dmg` with `Ascuta.app` | `.exe` installer (or `.zip`) |
-| Hotkey (default) | `Ctrl+Win` | `Option+Space` | `Ctrl+Win` |
-| Tray | StatusNotifier | menu bar | notification area |
-| Paste | `Shift+Insert` | `Cmd+V` | `Ctrl+V` |
-| Launch at login | `~/.config/autostart` | LaunchAgent | `Run` registry key |
+[releases]: https://github.com/emavgl/ascuta-desktop/releases
 
-**macOS** — on first launch the system asks for three permissions (System
-Settings → Privacy & Security): *Microphone*, *Accessibility* (to paste) and
-*Input Monitoring* (to read the hotkey). The app is ad-hoc signed: the first
-time, open it with right-click → Open.
+## First run
 
-**Windows** — no special permissions. Run the downloaded installer: it installs
-for the current user, creates a Start menu entry and registers an uninstaller in
-*Settings → Apps*. The MSVC runtime is bundled, so the Visual C++ Redistributable
-is not required. SmartScreen may warn because the executable is not signed. The
-portable `.zip` (`install.cmd`) remains available for manual installs.
+1. Open **Ascuta** from the tray/menu bar (or run `ascuta-desktop`).
+2. Download a model: Parakeet v2 for English (~640 MB), Parakeet v3 for 25
+   European languages (~670 MB), or a Whisper model for other languages.
+   Downloads are HTTPS and verified when a checksum is known.
+3. Pick the hotkey, language and input mode. Close the window.
+4. Put the cursor in any text field, hold the hotkey, speak, release.
 
-The optional Gemma cleanup uses Python: on macOS/Windows you need `uv` or
-Python 3 (the *Download* button installs the runtime itself).
+The first dictation after a reboot loads the model; expect a short delay.
 
-Build from source: `cargo build --release --features "capture sherpa"`
-(macOS: `packaging/macos/build-app.sh`; Windows: `packaging/windows/build-zip.ps1`
-then `packaging/windows/build-installer.ps1`).
+## Phone bridge
 
----
+Use the phone as the microphone of a computer that has none, or dictate on the
+phone and have the text appear on the desktop:
 
-## 1. Downloading the project
+1. On the computer: `ascuta-desktop --pair` prints a QR code and listens on
+   port `8737`.
+2. On the phone: **Ascuta → Home → Send to computer**, pair, scan the QR.
+3. Dictate on the phone. The finished transcript is typed on the computer.
 
-End users install the **prebuilt binary** with the one-line command above, or by
-downloading `ascuta-desktop-linux-x86_64.tar.gz` and its `.sha256` from the
-[public release page](https://github.com/emavgl/ascuta-website/releases/tag/desktop-latest).
-No source code is distributed.
+Phone and computer must be on the same network, and the firewall must allow TCP
+`8737`. The bridge is off by default; enable it in the settings window (or use
+`--pair`) and pair again if the computer's address changes.
 
-The source repository is private. Maintainers building locally use:
+## Privacy and security
+
+- Audio is captured, decoded and discarded locally. Transcripts are written only
+  to the settings/history files on this machine.
+- No analytics, crash reporting or network calls except model downloads.
+- The bridge requires a 256-bit bearer token generated at pairing time, but it
+  uses plain HTTP on the local network: use it on trusted networks only.
+- The app needs permission to send key events in order to type into other apps.
+
+See [`SECURITY.md`](SECURITY.md) for the full threat model and how to report a
+vulnerability.
+
+## Build from source
+
+Rust 1.88 or newer. The audio and speech backends are opt-in features so the
+default build stays headless.
+
+Linux needs ALSA, XKB and Wayland headers:
 
 ```sh
-git clone git@github.com:emavgl/ascuta-desktop.git
-cd ascuta-desktop
-
-# compile and install to ~/.local (requires Rust and libasound2-dev)
-cargo build --release --locked --features "capture sherpa"
-./packaging/build-release.sh
-./dist/ascuta-desktop-v*-linux-x86_64/install.sh
+sudo apt install build-essential pkg-config libasound2-dev \
+  libxkbcommon-dev libwayland-dev libudev-dev
 ```
-
-### Publishing a release
-
-Run this from a machine authenticated with `gh` (no extra token needed):
 
 ```sh
-packaging/build-release.sh v0.2.2
-
-gh release view desktop-latest -R emavgl/ascuta-website >/dev/null 2>&1 \
-  || gh release create desktop-latest -R emavgl/ascuta-website \
-       --title "Ascuta Desktop (latest)" \
-       --notes "Latest Ascuta Desktop build. Assets are replaced on every release."
-
-gh release upload desktop-latest -R emavgl/ascuta-website --clobber \
-  dist/ascuta-desktop-linux-x86_64.tar.gz \
-  dist/ascuta-desktop-linux-x86_64.tar.gz.sha256 \
-  dist/install.sh
+cargo build --release --features "capture sherpa"
+# binary: target/release/ascuta-desktop
 ```
 
-For Windows, build the zip and the single-file installer on a Windows machine
-(or build the zip with `cargo xwin` and run `build-installer.sh` on Linux):
+macOS and Windows need only the Rust toolchain; the sherpa-onnx libraries are
+fetched as prebuilt binaries during the build.
 
-```powershell
-packaging/windows/build-zip.ps1 v0.2.2
-packaging/windows/build-installer.ps1 v0.2.2
-
-gh release upload desktop-latest -R emavgl/ascuta-website --clobber `
-  dist/ascuta-desktop-windows-x86_64-setup.exe `
-  dist/ascuta-desktop-windows-x86_64-setup.exe.sha256 `
-  dist/ascuta-desktop-windows-x86_64.zip `
-  dist/ascuta-desktop-windows-x86_64.zip.sha256 `
-  dist/install-windows.ps1
-```
-
-`packaging/build-release.sh` and the Windows build scripts also leave the
-versioned packages in `dist/`; the stable-named files above are what the
-installers/downloads use.
-
----
-
-## 2. Installing on Linux
-
-With the prebuilt package, the quickest path is:
-
-```sh
-./install.sh
-```
-
-The script installs the binary, the bundled libraries, the desktop entry and the
-`PATH` entry. If you prefer to do it by hand:
-
-```sh
-mkdir -p ~/.local/bin
-install -m755 ascuta-desktop-*/ascuta-desktop ~/.local/bin/ascuta-desktop
-```
-
-Make sure `~/.local/bin` is in `PATH` (it usually is):
-
-```sh
-echo "$PATH" | tr ':' '\n' | grep -q "$HOME/.local/bin" \
-  || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-```
-
-- **Normal start:** `ascuta-desktop`
-- **Settings file:** `~/.config/ascuta/settings.json`
-  (override with the `ASCUTA_CONFIG_FILE` variable).
-
----
-
-## 3. Trying it
-
-### 3.1 Self-test (no display required)
-
-```sh
-ascuta-desktop --check
-```
-
-It must end with:
-
-```
-ascuta --check: OK (press/release/paste-hello/phone-bridge/settings-roundtrip)
-```
-
-### 3.2 Trying the phone bridge (main use case)
-
-1. **On the computer** start pairing mode:
-
-   ```sh
-   ascuta-desktop --pair
-   ```
-
-   It prints a **QR code** in the terminal and listens on port `8737`. Keep the
-   terminal open; use `Ctrl+C` to stop it.
-
-2. **On the phone** open Ascuta and go to
-   **Home → Send to computer** (turn the switch on) → **Pair a computer**, then
-   **scan the QR** shown on the computer.
-
-3. **Dictate** with Ascuta (bubble, keyboard or popup). The final text is typed
-   on the computer into the focused window.
-
-4. **Test connection** (Home → Send to computer) checks that the computer is
-   reachable.
-
-Notes:
-
-- Phone and computer must be on the **same Wi-Fi network**; the firewall must
-  allow port `8737`.
-- Security is local: bind on the LAN and a token generated in the QR. No data
-  leaves the local network.
-- You need a recent version of the Ascuta app that includes the bridge (repo
-  `ascuta`).
-
-### 3.3 Normal mode (desktop with a display)
-
-```sh
-ascuta-desktop
-```
-
-Starts the tray, the global hotkey (`Ctrl+Win`, hold to talk) and the HUD; the
-bridge starts only if `bridge_enabled` is `true` in `settings.json`. If the tray
-or hotkey is unavailable (e.g. Wayland, GNOME without the extension), the
-program warns and keeps running.
-
----
-
-## 4. Troubleshooting
-
-| Symptom | Cause / Solution |
-|---|---|
-| Text is not typed, `no key backend` appears | The session has no key backend (e.g. restricted Wayland): the text stays in the clipboard, paste it manually. |
-| `address already in use` at startup | Port `8737` is busy: change `bridge_port` in `~/.config/ascuta/settings.json` and restart (the QR will use the new port too). |
-| No tray icon on GNOME | Install the *AppIndicator* extension or use `--pair`. |
-| The QR is hard to read | The QR uses Unicode block characters: use a terminal with a monospace font. |
-| Verifying the download | `sha256sum -c ascuta-desktop-*.tar.gz.sha256` |
-
----
-
-## 5. Development
+## Development
 
 ```sh
 cd src-tauri
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
-cargo run -- --check   # headless gate
+cargo run -- --check    # headless self-test: no display, audio or network
 ```
 
-Architecture, models and roadmap: [`PLAN.md`](PLAN.md).
+Useful CLI flags:
 
-The GitHub Action
-[`.github/workflows/release.yml`](.github/workflows/release.yml) builds the Linux,
-macOS and Windows packages when a tag is pushed (`git tag v0.1.0 && git push
-origin v0.1.0`) and attaches them to the private repository's release. Publishing
-the Linux binary to the public website repository is done manually — see
-[Publishing a release](#publishing-a-release).
+| Flag | What it does |
+|---|---|
+| `--check` | Headless self-test (used in CI) |
+| `--version` | Print the version |
+| `--pair` | Print the phone-bridge QR and serve, no tray/UI |
+| `--gui` | Open the settings window (default on first run) |
+| `--transcribe FILE` | Transcribe a WAV file with the configured model |
+| `--debug-mic` | Record 4 s from the default input and print levels |
 
----
+Architecture and design rationale: [`PLAN.md`](PLAN.md).
+Contributions: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## Troubleshooting
+
+| Symptom | Cause / solution |
+|---|---|
+| Text is not typed, `no key backend` in the log | No usable key backend (restricted Wayland): the text stays in the clipboard — paste it manually. |
+| Hotkey does nothing on Linux | You are not in the `input` group, or the session predates the change: log out and back in. |
+| `address already in use` | Port `8737` is busy: change `bridge_port` in `~/.config/ascuta/settings.json` and restart. |
+| No tray icon on GNOME | Install the AppIndicator extension, or use `--pair`. |
+| Model download fails | Check free disk space and the network; retry from the model list. |
+| macOS does not hear you | Grant Microphone, Accessibility and Input Monitoring in System Settings → Privacy & Security. |
+
+Settings live in `~/.config/ascuta/settings.json` (Linux),
+`~/Library/Application Support/ascuta/settings.json` (macOS) and
+`%APPDATA%\ascuta\settings.json` (Windows). Override with `ASCUTA_CONFIG_FILE`.
 
 ## License
 
-MIT.
+Apache License 2.0 — see [`LICENSE`](LICENSE). Portions are derived from
+[Paseo](https://github.com/getpaseo/paseo); see [`NOTICE`](NOTICE).

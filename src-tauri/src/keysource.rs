@@ -66,7 +66,8 @@ pub fn run_helper() -> Result<()> {
     loop {
         match rx.recv_timeout(std::time::Duration::from_secs(1)) {
             Ok(k) => {
-                if writeln!(out, "{} {}", k.key, u8::from(k.down)).is_err() || out.flush().is_err() {
+                if writeln!(out, "{} {}", k.key, u8::from(k.down)).is_err() || out.flush().is_err()
+                {
                     return Ok(());
                 }
             }
@@ -93,7 +94,10 @@ fn start_via_helper(tx: Sender<RawKey>) -> Result<usize> {
         .stdout(Stdio::piped())
         .stdin(Stdio::null())
         .spawn()?;
-    let stdout = child.stdout.take().ok_or_else(|| anyhow::anyhow!("no helper stdout"))?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("no helper stdout"))?;
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<usize>();
     std::thread::Builder::new()
         .name("ascuta-keys-helper".into())
@@ -108,7 +112,13 @@ fn start_via_helper(tx: Sender<RawKey>) -> Result<usize> {
                     continue;
                 };
                 if let Some((key, _)) = crate::chord::KEYS.iter().find(|(k, _)| *k == name) {
-                    if tx.send(RawKey { key, down: state == "1" }).is_err() {
+                    if tx
+                        .send(RawKey {
+                            key,
+                            down: state == "1",
+                        })
+                        .is_err()
+                    {
                         break;
                     }
                 }

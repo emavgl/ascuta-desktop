@@ -10,7 +10,7 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}/ascuta"
 MODELS="${ASCUTA_MODELS_DIR:-$DATA/models}"
 SETTINGS="${ASCUTA_CONFIG_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/ascuta/settings.json}"
 
-RELEASES_URL="${ASCUTA_RELEASES_URL:-https://github.com/emavgl/ascuta-website/releases/download/desktop-latest}"
+RELEASES_URL="${ASCUTA_RELEASES_URL:-https://github.com/emavgl/ascuta-desktop/releases/latest/download}"
 ASSET="${ASCUTA_ASSET:-ascuta-desktop-linux-x86_64.tar.gz}"
 
 ASSUME_YES=0

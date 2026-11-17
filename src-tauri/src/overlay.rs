@@ -184,10 +184,10 @@ pub fn hit_test(mode: Mode, x: f32, y: f32) -> Option<Button> {
 /// paste target keeps keyboard focus.
 #[cfg(windows)]
 fn no_activate_windows(w: &Window) {
-    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
     };
+    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
     if let Ok(h) = w.window_handle() {
         if let RawWindowHandle::Win32(h) = h.as_raw() {
             let hwnd = h.hwnd.get() as *mut std::ffi::c_void;
@@ -324,8 +324,7 @@ impl WinitOverlay {
             return;
         };
         let size = window.inner_size();
-        let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
-        else {
+        let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else {
             return;
         };
         if let Err(e) = surface.resize(w, h) {
@@ -486,23 +485,29 @@ pub(crate) fn render_bar(
                     c = over(c, WHITE, cover(bd));
                 }
             }
-            buf[y * w + x] = argb(
-                (255.0 * body) as u8,
-                c.0 as u8,
-                c.1 as u8,
-                c.2 as u8,
-            );
+            buf[y * w + x] = argb((255.0 * body) as u8, c.0 as u8, c.1 as u8, c.2 as u8);
         }
     }
 }
 
 /// White text centred in the pill, composited over the premultiplied bar.
-pub(crate) fn draw_label(buf: &mut [u32], w: usize, h: usize, font: &ab_glyph::FontVec, text: &str, dots: &str) {
+pub(crate) fn draw_label(
+    buf: &mut [u32],
+    w: usize,
+    h: usize,
+    font: &ab_glyph::FontVec,
+    text: &str,
+    dots: &str,
+) {
     use ab_glyph::{point, Font, ScaleFont};
     let s = w as f32 / WIN_W;
     let size = 20.0 * s;
     let scaled = font.as_scaled(ab_glyph::PxScale::from(size));
-    let advance = |t: &str| -> f32 { t.chars().map(|c| scaled.h_advance(scaled.glyph_id(c))).sum() };
+    let advance = |t: &str| -> f32 {
+        t.chars()
+            .map(|c| scaled.h_advance(scaled.glyph_id(c)))
+            .sum()
+    };
     // Width is that of the text plus three dots, so it stays put.
     let total = advance(text) + advance("...");
     let mut x = (w as f32 - total) / 2.0;
@@ -631,15 +636,23 @@ mod tests {
     fn dump_bar() {
         for (scale, tag) in [(1usize, "1x"), (2, "2x")] {
             let (w, h) = (WIN_W as usize * scale, WIN_H as usize * scale);
-            let font = crate::sysfont::bytes()
-                .and_then(|b| ab_glyph::FontVec::try_from_vec(b).ok());
+            let font =
+                crate::sysfont::bytes().and_then(|b| ab_glyph::FontVec::try_from_vec(b).ok());
             for (name, mode, label) in [
                 ("listening", Mode::Listening, None),
                 ("transcribing", Mode::Decoding, Some("Transcribing")),
                 ("cleaning", Mode::Cleaning, Some("Cleaning up")),
             ] {
                 let mut buf = vec![0u32; w * h];
-                render_bar(&mut buf, w, h, mode, 0.6, 0.35, label.is_some() && font.is_some());
+                render_bar(
+                    &mut buf,
+                    w,
+                    h,
+                    mode,
+                    0.6,
+                    0.35,
+                    label.is_some() && font.is_some(),
+                );
                 if let (Some(text), Some(f)) = (label, &font) {
                     draw_label(&mut buf, w, h, f, text, "..");
                 }
@@ -652,7 +665,9 @@ mod tests {
                         out.push((c + 200.0 * (1.0 - a)) as u8);
                     }
                 }
-                std::fs::write(format!("/tmp/claude-1000/bar-{name}-{tag}.ppm"), out).unwrap();
+                let path = std::env::temp_dir().join(format!("ascuta-bar-{name}-{tag}.ppm"));
+                std::fs::write(&path, out).unwrap();
+                eprintln!("wrote {}", path.display());
             }
         }
     }
@@ -671,7 +686,12 @@ mod tests {
         assert_ne!(plain, text, "label changed some pixels");
         // text pixels are clearly brighter than the dark capsule
         let bright = |b: &[u32]| b.iter().filter(|p| ((**p >> 16) & 0xFF) > 0x90).count();
-        assert!(bright(&text) > bright(&plain) + 40, "{} vs {}", bright(&text), bright(&plain));
+        assert!(
+            bright(&text) > bright(&plain) + 40,
+            "{} vs {}",
+            bright(&text),
+            bright(&plain)
+        );
         // outside the capsule stays transparent
         assert_eq!(text[0] >> 24, 0);
     }

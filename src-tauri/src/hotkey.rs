@@ -73,10 +73,7 @@ pub(crate) fn parse_hotkey(spec: &str) -> Result<HotKey> {
 /// chords such as `Ctrl+Win` or `Right Alt` are fine). Spawns the key
 /// listener plus a tracker thread that emits `HotkeyPressed/Released`.
 /// Returns how many keyboards are watched.
-pub fn start_chord_listener(
-    spec: &str,
-    tx: mpsc::Sender<super::OsEvent>,
-) -> Result<usize> {
+pub fn start_chord_listener(spec: &str, tx: mpsc::Sender<super::OsEvent>) -> Result<usize> {
     let chord = crate::chord::Chord::parse(spec)
         .map_err(|e| anyhow::anyhow!("invalid hotkey {spec:?}: {e}"))?;
     let (key_tx, key_rx) = mpsc::channel();

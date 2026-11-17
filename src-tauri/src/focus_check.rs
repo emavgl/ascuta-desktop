@@ -32,7 +32,12 @@ fn a11y_flag(set: Option<bool>) -> Option<bool> {
         None => {
             let out = Command::new("busctl")
                 .arg("get-property")
-                .args(["org.a11y.Bus", "/org/a11y/bus", "org.a11y.Status", "IsEnabled"])
+                .args([
+                    "org.a11y.Bus",
+                    "/org/a11y/bus",
+                    "org.a11y.Status",
+                    "IsEnabled",
+                ])
                 .arg("--user")
                 .output()
                 .ok()?;

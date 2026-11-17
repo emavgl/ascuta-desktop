@@ -1,13 +1,13 @@
 # One-line Windows installer for the prebuilt package.
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -Command `
-#     "irm https://github.com/emavgl/ascuta-website/releases/download/desktop-latest/install-windows.ps1 | iex"
+#     "irm https://github.com/emavgl/ascuta-desktop/releases/latest/download/install-windows.ps1 | iex"
 #
 # Downloads the release zip, verifies its SHA-256 and runs the bundled
 # per-user installer (no administrator rights needed).
 $ErrorActionPreference = "Stop"
 
-$releases = "https://github.com/emavgl/ascuta-website/releases/download/desktop-latest"
+$releases = "https://github.com/emavgl/ascuta-desktop/releases/latest/download"
 $zipName = "ascuta-desktop-windows-x86_64.zip"
 $tmp = Join-Path $env:TEMP ("ascuta-install-" + [guid]::NewGuid().ToString("N"))
 

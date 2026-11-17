@@ -3,6 +3,9 @@ resolver = "2"
 members = ["src-tauri"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.2"
 edition = "2021"
-license = "MIT"
+rust-version = "1.88"
+license = "Apache-2.0"
+description = "Offline push-to-talk dictation for the desktop, with a phone bridge for Ascuta on Android"
+repository = "https://github.com/emavgl/ascuta-desktop"

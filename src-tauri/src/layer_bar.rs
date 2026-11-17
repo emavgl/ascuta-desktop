@@ -216,9 +216,9 @@ impl State {
         }
         let scale = self.scale.max(1);
         let (w, h) = (WIN_W as i32 * scale, WIN_H as i32 * scale);
-        let Ok((buffer, canvas)) =
-            self.pool
-                .create_buffer(w, h, w * 4, wl_shm::Format::Argb8888)
+        let Ok((buffer, canvas)) = self
+            .pool
+            .create_buffer(w, h, w * 4, wl_shm::Format::Argb8888)
         else {
             return;
         };
@@ -234,12 +234,20 @@ impl State {
             _ => None,
         };
         let labelled = label.is_some() && self.font.is_some();
-        render_bar(&mut px, w as usize, h as usize, self.mode, self.smooth, t, labelled);
+        render_bar(
+            &mut px,
+            w as usize,
+            h as usize,
+            self.mode,
+            self.smooth,
+            t,
+            labelled,
+        );
         if let (Some(text), Some(font)) = (label, &self.font) {
             let dots = ".".repeat(1 + (t * 2.0) as usize % 3);
             draw_label(&mut px, w as usize, h as usize, font, text, &dots);
         }
-        for (chunk, p) in canvas.chunks_exact_mut(4).zip(px.iter()) {
+        for (chunk, p) in canvas.as_chunks_mut::<4>().0.iter_mut().zip(px.iter()) {
             chunk.copy_from_slice(&p.to_le_bytes());
         }
 

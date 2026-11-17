@@ -1,7 +1,0 @@
-{
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "Settings window only — tray/HUD/hotkey live in Rust core, not here.",
-  "windows": ["settings"],
-  "permissions": ["core:default", "opener:default"]
-}

@@ -4,28 +4,80 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   headless:
-    # Pure headless gate: no display server, no audio device, no network
-    # models. Everything must pass via fakes + unit tests.
+    # Pure headless gate: no display server, no audio device, no network,
+    # no downloaded models. Everything must pass via fakes + unit tests.
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      - name: System libraries (XKB + Wayland headers)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libxkbcommon-dev libwayland-dev
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
       - name: fmt
         run: cargo fmt --check
         working-directory: src-tauri
+
       - name: clippy
         run: cargo clippy --all-targets -- -D warnings
         working-directory: src-tauri
+
       - name: unit tests
         run: cargo test
         working-directory: src-tauri
+
       - name: headless self-check (no display/audio/network/models)
         run: cargo run -- --check
         working-directory: src-tauri
         env:
           # Isolate from any runner-level config; prove the fallback path.
           ASCUTA_CONFIG_FILE: ${{ runner.temp }}/ascuta-ci-settings.json
+
+  native-features:
+    # The release build enables the microphone and sherpa-onnx backends. Gate
+    # them on every push so a break is caught here, not while tagging a release.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System libraries (ALSA + XKB + Wayland headers)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libasound2-dev libxkbcommon-dev libwayland-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: clippy (capture + sherpa)
+        run: cargo clippy --all-targets --features "capture sherpa" -- -D warnings
+        working-directory: src-tauri
+
+      - name: build release binary
+        run: cargo build --release --locked --features "capture sherpa"
+        working-directory: src-tauri

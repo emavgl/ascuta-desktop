@@ -147,21 +147,19 @@ pub mod sherpa {
                 }
                 SttFamily::Llm => anyhow::bail!("{model_id} is not a speech model"),
                 SttFamily::Whisper => Inner::Whisper(
-                    sherpa_rs::whisper::WhisperRecognizer::new(
-                        sherpa_rs::whisper::WhisperConfig {
-                            encoder: pick(&dir, "encoder", req)?,
-                            decoder: pick(&dir, "decoder", req)?,
-                            tokens: pick(&dir, "tokens", req)?,
-                            language: if language == "auto" {
-                                String::new()
-                            } else {
-                                language.to_string()
-                            },
-                            num_threads: Some(threads),
-                            provider: Some("cpu".into()),
-                            ..Default::default()
+                    sherpa_rs::whisper::WhisperRecognizer::new(sherpa_rs::whisper::WhisperConfig {
+                        encoder: pick(&dir, "encoder", req)?,
+                        decoder: pick(&dir, "decoder", req)?,
+                        tokens: pick(&dir, "tokens", req)?,
+                        language: if language == "auto" {
+                            String::new()
+                        } else {
+                            language.to_string()
                         },
-                    )
+                        num_threads: Some(threads),
+                        provider: Some("cpu".into()),
+                        ..Default::default()
+                    })
                     .map_err(|e| anyhow::anyhow!("{e}"))?,
                 ),
             };

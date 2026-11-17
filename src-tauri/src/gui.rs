@@ -85,8 +85,7 @@ fn apply_settings(cur: &mut settings::Settings, body: &Value) -> Result<(), Stri
         cur.model = m.to_string();
     }
     if let Some(l) = body.get("language").and_then(Value::as_str) {
-        let ok = l == "auto"
-            || (l.len() == 2 && l.chars().all(|c| c.is_ascii_lowercase()));
+        let ok = l == "auto" || (l.len() == 2 && l.chars().all(|c| c.is_ascii_lowercase()));
         if !ok {
             return Err("language must be `auto` or a 2-letter code".into());
         }
@@ -94,10 +93,10 @@ fn apply_settings(cur: &mut settings::Settings, body: &Value) -> Result<(), Stri
     }
     if let Some(h) = body.get("hotkey").and_then(Value::as_str) {
         let h = h.trim();
-        if h.is_empty() || h.len() > 40 || !crate::chord::Chord::parse(h).is_ok_and(|c| c.is_safe()) {
+        if h.is_empty() || h.len() > 40 || !crate::chord::Chord::parse(h).is_ok_and(|c| c.is_safe())
+        {
             return Err(
-                "invalid hotkey (a lone letter/digit would block typing; add Ctrl/Alt/Win)"
-                    .into(),
+                "invalid hotkey (a lone letter/digit would block typing; add Ctrl/Alt/Win)".into(),
             );
         }
         // Store the canonical spelling (`Ctrl+Win`, `RightAlt`, …).
@@ -165,8 +164,7 @@ fn keyboard_access() -> KeyboardAccess {
         .lines()
         .any(|l| {
             let mut f = l.split(':');
-            f.next() == Some("input")
-                && f.nth(2).is_some_and(|m| m.split(',').any(|u| u == user))
+            f.next() == Some("input") && f.nth(2).is_some_and(|m| m.split(',').any(|u| u == user))
         });
     keyboard_access_from(can_read, in_group)
 }
@@ -263,9 +261,7 @@ pub fn route(
         ("GET", "/") | ("GET", "/index.html") => {
             return Reply::asset("text/html; charset=utf-8", INDEX_HTML)
         }
-        ("GET", "/app.js") => {
-            return Reply::asset("application/javascript; charset=utf-8", APP_JS)
-        }
+        ("GET", "/app.js") => return Reply::asset("application/javascript; charset=utf-8", APP_JS),
         ("GET", "/styles.css") => return Reply::asset("text/css; charset=utf-8", STYLES_CSS),
         _ => {}
     }
@@ -300,9 +296,9 @@ pub fn route(
             let Some(model) = model.filter(|m| models::find_model(m).is_some()) else {
                 return Reply::err(400, "unknown model");
             };
-            let started =
-                ctx.tracker
-                    .start(ctx.models_dir.clone(), &model, on_download_done());
+            let started = ctx
+                .tracker
+                .start(ctx.models_dir.clone(), &model, on_download_done());
             Reply::json(200, json!({"ok": true, "started": started}))
         }
         ("POST", "/api/restart") => {
@@ -498,7 +494,10 @@ mod tests {
     fn api_requires_token() {
         let d = tempfile::tempdir().unwrap();
         let c = ctx(d.path());
-        assert_eq!(route(&c, &req("GET", "/api/state", None, ""), &noop).status, 401);
+        assert_eq!(
+            route(&c, &req("GET", "/api/state", None, ""), &noop).status,
+            401
+        );
         assert_eq!(
             route(&c, &req("GET", "/api/state", Some("bad"), ""), &noop).status,
             401
@@ -515,7 +514,10 @@ mod tests {
         let c = ctx(d.path());
         let r = route(&c, &req("GET", "/api/state", Some("tok"), ""), &noop);
         let v: Value = serde_json::from_str(&r.body).unwrap();
-        assert_eq!(v["models"].as_array().unwrap().len(), models::ALL_MODELS.len());
+        assert_eq!(
+            v["models"].as_array().unwrap().len(),
+            models::ALL_MODELS.len()
+        );
         assert_eq!(v["models"][0]["status"]["state"], "missing");
         assert_eq!(v["readiness"]["ready"], false);
     }
@@ -558,7 +560,12 @@ mod tests {
         // The UI cannot read or overwrite the pairing token.
         route(
             &c,
-            &req("POST", "/api/settings", Some("tok"), r#"{"bridge_token":"x"}"#),
+            &req(
+                "POST",
+                "/api/settings",
+                Some("tok"),
+                r#"{"bridge_token":"x"}"#,
+            ),
             &noop,
         );
         assert_eq!(c.store.read().unwrap().bridge_token, "keepme");
@@ -569,8 +576,14 @@ mod tests {
     #[test]
     fn keyboard_access_states() {
         assert_eq!(keyboard_access_from(true, false), KeyboardAccess::Ok);
-        assert_eq!(keyboard_access_from(false, true), KeyboardAccess::NeedsRelogin);
-        assert_eq!(keyboard_access_from(false, false), KeyboardAccess::NeedsGroup);
+        assert_eq!(
+            keyboard_access_from(false, true),
+            KeyboardAccess::NeedsRelogin
+        );
+        assert_eq!(
+            keyboard_access_from(false, false),
+            KeyboardAccess::NeedsGroup
+        );
     }
 
     #[test]
@@ -612,7 +625,11 @@ mod tests {
         let gui = Gui::start(ctx(d.path()), 0, tx).unwrap();
         let url = gui.url();
         let base = url.split("/?").next().unwrap().to_string();
-        let page = ureq::get(&format!("{base}/")).call().unwrap().into_string().unwrap();
+        let page = ureq::get(&format!("{base}/"))
+            .call()
+            .unwrap()
+            .into_string()
+            .unwrap();
         assert!(page.contains("<html"));
         let state: Value = serde_json::from_str(
             &ureq::get(&format!("{base}/api/state"))
@@ -628,6 +645,9 @@ mod tests {
             .set("X-Ascuta-Token", "tok")
             .send_string(r#"{"language":"de"}"#)
             .unwrap();
-        assert_eq!(rx.recv_timeout(Duration::from_secs(2)).unwrap(), OsEvent::SettingsChanged);
+        assert_eq!(
+            rx.recv_timeout(Duration::from_secs(2)).unwrap(),
+            OsEvent::SettingsChanged
+        );
     }
 }

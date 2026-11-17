@@ -121,7 +121,11 @@ fn extract_named(
 /// single top-level `<extracted_dir>/`; if not, the staging dir itself is used.
 fn install(staging: &Path, extracted_dir: &str, dest: &Path) -> Result<()> {
     let inner = staging.join(extracted_dir);
-    let src = if inner.is_dir() { inner } else { staging.to_path_buf() };
+    let src = if inner.is_dir() {
+        inner
+    } else {
+        staging.to_path_buf()
+    };
     if dest.exists() {
         std::fs::remove_dir_all(dest)?;
     }
@@ -148,17 +152,19 @@ pub fn download_model(
     model_id: &str,
     progress: &mut dyn FnMut(u64, Option<u64>),
 ) -> Result<()> {
-    let plan = plan_for(models_dir, model_id)
-        .with_context(|| format!("unknown model id: {model_id}"))?;
+    let plan =
+        plan_for(models_dir, model_id).with_context(|| format!("unknown model id: {model_id}"))?;
     if is_complete(models_dir, model_id) {
         return Ok(());
     }
     // Per-process staging dir: a second instance (or a retry) downloading the
     // same model must never delete the files this one is extracting.
     let spec = crate::models::find_model(model_id).expect("plan implies known model");
-    let staging = models_dir
-        .join(".staging")
-        .join(format!("{}.{}.part", spec.extracted_dir, std::process::id()));
+    let staging = models_dir.join(".staging").join(format!(
+        "{}.{}.part",
+        spec.extracted_dir,
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&staging);
     let result = (|| -> Result<()> {
         let resp = ureq::get(&plan.url)
@@ -342,7 +348,8 @@ mod tests {
             h.set_size(data.len() as u64);
             h.set_mode(0o644);
             h.set_cksum();
-            b.append_data(&mut h, format!("{dir}/{f}"), &data[..]).unwrap();
+            b.append_data(&mut h, format!("{dir}/{f}"), &data[..])
+                .unwrap();
         }
         b.into_inner().unwrap().finish().unwrap()
     }
@@ -363,9 +370,17 @@ mod tests {
     #[test]
     fn single_file_download_is_saved_by_name() {
         let out = tempfile::tempdir().unwrap();
-        extract_named(&b"gguf-bytes"[..], ArchiveKind::SingleFile, out.path(), Some("m.gguf"))
-            .unwrap();
-        assert_eq!(std::fs::read(out.path().join("m.gguf")).unwrap(), b"gguf-bytes");
+        extract_named(
+            &b"gguf-bytes"[..],
+            ArchiveKind::SingleFile,
+            out.path(),
+            Some("m.gguf"),
+        )
+        .unwrap();
+        assert_eq!(
+            std::fs::read(out.path().join("m.gguf")).unwrap(),
+            b"gguf-bytes"
+        );
         assert_eq!(archive_kind("https://x/y/m.gguf"), ArchiveKind::SingleFile);
     }
 

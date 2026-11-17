@@ -1,0 +1,19 @@
+Ascuta Desktop
+Copyright 2026 Emanuele Viglianisi
+
+This product includes software developed as part of the Ascuta project
+(https://github.com/emavgl/ascuta).
+
+Portions of this software are derived from Paseo
+(https://github.com/getpaseo/paseo), Copyright 2025-present Mohamed Boudra,
+licensed under the Apache License, Version 2.0.
+
+Bundled runtime libraries in the prebuilt packages:
+
+  * sherpa-onnx — Copyright 2023-2026 Xiaomi Corporation and contributors,
+    licensed under the Apache License, Version 2.0.
+  * ONNX Runtime — Copyright Microsoft Corporation, licensed under the MIT
+    License.
+
+Third-party Rust crates are used under their own licenses; see Cargo.lock and
+the license metadata of each crate.

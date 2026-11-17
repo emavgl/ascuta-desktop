@@ -10,9 +10,9 @@
 //! extension). The `Tray` trait keeps the backend swappable.
 //! `FakeTray` keeps CI headless (see `--check`).
 
-use anyhow::Result;
 #[cfg(target_os = "linux")]
 use anyhow::Context;
+use anyhow::Result;
 #[cfg(target_os = "linux")]
 use ksni::blocking::{Handle, TrayMethods};
 
@@ -146,7 +146,11 @@ pub fn icon_rgba(status: &str) -> (Vec<u8>, u32, u32) {
             let body = cover(seg(px, py, (16.0, 10.5), (16.0, 15.5)) - 3.6);
             let cradle = {
                 let d = ((px - 16.0).hypot(py - 15.5) - 7.2).abs() - 0.9;
-                if py >= 15.5 { cover(d) } else { 0.0 }
+                if py >= 15.5 {
+                    cover(d)
+                } else {
+                    0.0
+                }
             };
             let stem = cover(seg(px, py, (16.0, 22.5), (16.0, 25.0)) - 0.9);
             let base = cover(seg(px, py, (12.0, 25.5), (20.0, 25.5)) - 0.9);

@@ -19,10 +19,10 @@
 mod audio;
 mod autostart;
 mod bridge;
-mod cleanup;
-mod chord;
 #[cfg(feature = "capture")]
 mod capture;
+mod chord;
+mod cleanup;
 mod downloader;
 mod focus_check;
 mod gui;
@@ -40,9 +40,9 @@ mod pairing;
 mod portal_keys;
 mod readiness;
 mod settings;
-mod sysfont;
 mod state;
 mod stt;
+mod sysfont;
 mod tray;
 mod vad;
 mod worker;
@@ -316,7 +316,10 @@ impl App {
 
 /// Build the STT worker for the configured model, if this build has an
 /// engine and the model files are present.
-fn spawn_worker(settings: &settings::Settings, tx: mpsc::Sender<OsEvent>) -> Option<worker::Worker> {
+fn spawn_worker(
+    settings: &settings::Settings,
+    tx: mpsc::Sender<OsEvent>,
+) -> Option<worker::Worker> {
     #[cfg(feature = "sherpa")]
     {
         let dir = models::default_models_dir();
@@ -510,7 +513,10 @@ impl ApplicationHandler for App {
                 ..
             } => {
                 let scale = self.overlay.scale_factor();
-                let (lx, ly) = ((self.cursor.0 / scale) as f32, (self.cursor.1 / scale) as f32);
+                let (lx, ly) = (
+                    (self.cursor.0 / scale) as f32,
+                    (self.cursor.1 / scale) as f32,
+                );
                 match overlay::hit_test(self.overlay.mode(), lx, ly) {
                     Some(overlay::Button::Cancel) => self.cancel_recording(),
                     Some(overlay::Button::Stop) => self.finish_recording(),
@@ -607,6 +613,10 @@ fn main() -> Result<()> {
     }
     if args.iter().any(|a| a == "--check") {
         return self_check();
+    }
+    if args.iter().any(|a| a == "--version" || a == "-V") {
+        println!("ascuta-desktop {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
     }
     if let Some(i) = args.iter().position(|a| a == "--transcribe") {
         return transcribe_file(args.get(i + 1).map(String::as_str));
@@ -841,7 +851,10 @@ fn transcribe_file(path: Option<&str>) -> Result<()> {
     {
         let path = path.ok_or_else(|| anyhow::anyhow!("usage: --transcribe file.wav"))?;
         let bytes = std::fs::read(path)?;
-        anyhow::ensure!(bytes.len() > 44 && &bytes[0..4] == b"RIFF", "not a WAV file");
+        anyhow::ensure!(
+            bytes.len() > 44 && &bytes[0..4] == b"RIFF",
+            "not a WAV file"
+        );
         let rate = u32::from_le_bytes(bytes[24..28].try_into()?);
         let channels = u16::from_le_bytes(bytes[22..24].try_into()?) as usize;
         let data = bytes[44..]
@@ -919,7 +932,11 @@ fn debug_mic() -> Result<()> {
             "captured {:.1}s, peak {:.3}, vad: {}",
             pcm.len() as f32 / 16_000.0,
             peak as f32 / 32768.0,
-            if vad::trim(&pcm).is_some() { "speech" } else { "no speech" }
+            if vad::trim(&pcm).is_some() {
+                "speech"
+            } else {
+                "no speech"
+            }
         );
         Ok(())
     }
@@ -986,7 +1003,12 @@ fn debug_bar(mode: &str) -> Result<()> {
                 std::time::Instant::now() + std::time::Duration::from_millis(50),
             ));
         }
-        fn window_event(&mut self, _: &ActiveEventLoop, _: winit::window::WindowId, ev: WindowEvent) {
+        fn window_event(
+            &mut self,
+            _: &ActiveEventLoop,
+            _: winit::window::WindowId,
+            ev: WindowEvent,
+        ) {
             if let WindowEvent::RedrawRequested = ev {
                 self.overlay.redraw();
             }
@@ -1015,7 +1037,11 @@ fn debug_keys() -> Result<()> {
     let end = std::time::Instant::now() + std::time::Duration::from_secs(20);
     while let Some(left) = end.checked_duration_since(std::time::Instant::now()) {
         if let Ok(raw) = rx.recv_timeout(left) {
-            println!("key {:<12} {}", raw.key, if raw.down { "down" } else { "up" });
+            println!(
+                "key {:<12} {}",
+                raw.key,
+                if raw.down { "down" } else { "up" }
+            );
             match tracker.on_key(raw.key, raw.down) {
                 Some(true) => println!("  >>> HOTKEY PRESSED"),
                 Some(false) => println!("  >>> HOTKEY RELEASED"),
@@ -1031,8 +1057,9 @@ fn debug_keys() -> Result<()> {
 fn run_settings_window() -> Result<()> {
     #[cfg(feature = "native-ui")]
     {
-        let base = std::env::var("ASCUTA_GUI_BASE")
-            .map_err(|_| anyhow::anyhow!("ASCUTA_GUI_BASE not set; start Ascuta and use the tray"))?;
+        let base = std::env::var("ASCUTA_GUI_BASE").map_err(|_| {
+            anyhow::anyhow!("ASCUTA_GUI_BASE not set; start Ascuta and use the tray")
+        })?;
         let token = std::env::var("ASCUTA_GUI_TOKEN").unwrap_or_default();
         native_ui::run(base, token)
     }
@@ -1044,10 +1071,7 @@ fn run_settings_window() -> Result<()> {
 
 /// When nothing editable has focus, keep the transcript in the clipboard
 /// and tell the user, instead of sending a paste keystroke to a random app.
-fn copy_with_notice(
-    injector: &mut impl injection::Injector,
-    text: &str,
-) {
+fn copy_with_notice(injector: &mut impl injection::Injector, text: &str) {
     match injector.copy_only(text) {
         Ok(()) => injection::show_notice(
             "Copied to clipboard",
@@ -1102,11 +1126,7 @@ fn inject_remote_with_focus(
 /// default; if it fails (no key backend, missing Wayland portal) fall back
 /// to the clipboard + paste path so the dictation is not lost. A trailing
 /// space keeps consecutive dictations (local or from the phone) apart.
-fn insert_text(
-    injector: &mut impl injection::Injector,
-    settings: &settings::Settings,
-    text: &str,
-) {
+fn insert_text(injector: &mut impl injection::Injector, settings: &settings::Settings, text: &str) {
     let text = injection::with_trailing_space(text);
     if text.is_empty() {
         return;
@@ -1345,6 +1365,8 @@ fn self_check() -> Result<()> {
     let reloaded = store.read()?;
     assert_eq!(reloaded, settings);
 
-    println!("ascuta --check: OK (press/release/vad/worker/inject/phone-bridge/settings-roundtrip)");
+    println!(
+        "ascuta --check: OK (press/release/vad/worker/inject/phone-bridge/settings-roundtrip)"
+    );
     Ok(())
 }

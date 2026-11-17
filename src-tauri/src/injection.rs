@@ -120,13 +120,15 @@ impl EnigoInjector {
         #[cfg(target_os = "linux")]
         if is_wayland() {
             let slot = portal.clone();
-            std::thread::spawn(move || match crate::portal_keys::PortalKeyboard::connect() {
-                Ok(p) => {
-                    eprintln!("ascuta: keyboard portal ready (automatic paste enabled)");
-                    *slot.lock().unwrap() = Some(p);
-                }
-                Err(e) => eprintln!("ascuta: {e:#} — text will be left in the clipboard"),
-            });
+            std::thread::spawn(
+                move || match crate::portal_keys::PortalKeyboard::connect() {
+                    Ok(p) => {
+                        eprintln!("ascuta: keyboard portal ready (automatic paste enabled)");
+                        *slot.lock().unwrap() = Some(p);
+                    }
+                    Err(e) => eprintln!("ascuta: {e:#} — text will be left in the clipboard"),
+                },
+            );
         }
         Self {
             clipboard,
@@ -137,10 +139,7 @@ impl EnigoInjector {
     }
 
     fn type_fallback(&mut self, text: &str) -> Result<()> {
-        let enigo = self
-            .enigo
-            .as_mut()
-            .context("no key backend for typing")?;
+        let enigo = self.enigo.as_mut().context("no key backend for typing")?;
         enigo.text(text).context("type text")?;
         Ok(())
     }

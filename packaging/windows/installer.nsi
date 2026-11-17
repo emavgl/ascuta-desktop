@@ -13,7 +13,7 @@ BrandingText "Ascuta Desktop"
 !include "LogicLib.nsh"
 
 !ifndef VERSION
-  !define VERSION "0.2.1"
+  !define VERSION "0.2.2"
 !endif
 !ifndef SOURCE_DIR
   !define SOURCE_DIR "..\..\dist\ascuta-desktop-v${VERSION}-windows-x86_64"
@@ -33,7 +33,7 @@ VIAddVersionKey /LANG=1033 "ProductVersion" "${VERSION}"
 VIAddVersionKey /LANG=1033 "FileDescription" "Ascuta Desktop installer"
 VIAddVersionKey /LANG=1033 "FileVersion" "${VERSION}.0"
 VIAddVersionKey /LANG=1033 "CompanyName" "Ascuta"
-VIAddVersionKey /LANG=1033 "LegalCopyright" "MIT"
+VIAddVersionKey /LANG=1033 "LegalCopyright" "Apache-2.0"
 
 !define MUI_ICON "app.ico"
 !define MUI_UNICON "app.ico"

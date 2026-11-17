@@ -15,27 +15,107 @@ use std::fmt;
 
 /// Canonical key names with their Linux evdev key codes.
 pub const KEYS: &[(&str, u16)] = &[
-    ("LeftCtrl", 29), ("RightCtrl", 97), ("LeftShift", 42), ("RightShift", 54),
-    ("LeftAlt", 56), ("RightAlt", 100), ("LeftWin", 125), ("RightWin", 126),
-    ("A", 30), ("B", 48), ("C", 46), ("D", 32), ("E", 18), ("F", 33), ("G", 34),
-    ("H", 35), ("I", 23), ("J", 36), ("K", 37), ("L", 38), ("M", 50), ("N", 49),
-    ("O", 24), ("P", 25), ("Q", 16), ("R", 19), ("S", 31), ("T", 20), ("U", 22),
-    ("V", 47), ("W", 17), ("X", 45), ("Y", 21), ("Z", 44),
-    ("1", 2), ("2", 3), ("3", 4), ("4", 5), ("5", 6), ("6", 7), ("7", 8),
-    ("8", 9), ("9", 10), ("0", 11),
-    ("F1", 59), ("F2", 60), ("F3", 61), ("F4", 62), ("F5", 63), ("F6", 64),
-    ("F7", 65), ("F8", 66), ("F9", 67), ("F10", 68), ("F11", 87), ("F12", 88),
-    ("F13", 183), ("F14", 184), ("F15", 185), ("F16", 186), ("F17", 187),
-    ("F18", 188), ("F19", 189), ("F20", 190), ("F21", 191), ("F22", 192),
-    ("F23", 193), ("F24", 194),
-    ("Space", 57), ("Enter", 28), ("Tab", 15), ("Escape", 1), ("Backspace", 14),
-    ("CapsLock", 58), ("Insert", 110), ("Delete", 111), ("Home", 102), ("End", 107),
-    ("PageUp", 104), ("PageDown", 109), ("Up", 103), ("Down", 108), ("Left", 105),
-    ("Right", 106), ("Minus", 12), ("Equal", 13), ("Grave", 41), ("Semicolon", 39),
-    ("Comma", 51), ("Period", 52), ("Slash", 53), ("Backslash", 43),
-    ("Apostrophe", 40), ("LeftBracket", 26), ("RightBracket", 27),
-    ("ScrollLock", 70), ("Pause", 119), ("PrintScreen", 99), ("Menu", 127),
-    ("NumLock", 69), ("Fn", 464),
+    ("LeftCtrl", 29),
+    ("RightCtrl", 97),
+    ("LeftShift", 42),
+    ("RightShift", 54),
+    ("LeftAlt", 56),
+    ("RightAlt", 100),
+    ("LeftWin", 125),
+    ("RightWin", 126),
+    ("A", 30),
+    ("B", 48),
+    ("C", 46),
+    ("D", 32),
+    ("E", 18),
+    ("F", 33),
+    ("G", 34),
+    ("H", 35),
+    ("I", 23),
+    ("J", 36),
+    ("K", 37),
+    ("L", 38),
+    ("M", 50),
+    ("N", 49),
+    ("O", 24),
+    ("P", 25),
+    ("Q", 16),
+    ("R", 19),
+    ("S", 31),
+    ("T", 20),
+    ("U", 22),
+    ("V", 47),
+    ("W", 17),
+    ("X", 45),
+    ("Y", 21),
+    ("Z", 44),
+    ("1", 2),
+    ("2", 3),
+    ("3", 4),
+    ("4", 5),
+    ("5", 6),
+    ("6", 7),
+    ("7", 8),
+    ("8", 9),
+    ("9", 10),
+    ("0", 11),
+    ("F1", 59),
+    ("F2", 60),
+    ("F3", 61),
+    ("F4", 62),
+    ("F5", 63),
+    ("F6", 64),
+    ("F7", 65),
+    ("F8", 66),
+    ("F9", 67),
+    ("F10", 68),
+    ("F11", 87),
+    ("F12", 88),
+    ("F13", 183),
+    ("F14", 184),
+    ("F15", 185),
+    ("F16", 186),
+    ("F17", 187),
+    ("F18", 188),
+    ("F19", 189),
+    ("F20", 190),
+    ("F21", 191),
+    ("F22", 192),
+    ("F23", 193),
+    ("F24", 194),
+    ("Space", 57),
+    ("Enter", 28),
+    ("Tab", 15),
+    ("Escape", 1),
+    ("Backspace", 14),
+    ("CapsLock", 58),
+    ("Insert", 110),
+    ("Delete", 111),
+    ("Home", 102),
+    ("End", 107),
+    ("PageUp", 104),
+    ("PageDown", 109),
+    ("Up", 103),
+    ("Down", 108),
+    ("Left", 105),
+    ("Right", 106),
+    ("Minus", 12),
+    ("Equal", 13),
+    ("Grave", 41),
+    ("Semicolon", 39),
+    ("Comma", 51),
+    ("Period", 52),
+    ("Slash", 53),
+    ("Backslash", 43),
+    ("Apostrophe", 40),
+    ("LeftBracket", 26),
+    ("RightBracket", 27),
+    ("ScrollLock", 70),
+    ("Pause", 119),
+    ("PrintScreen", 99),
+    ("Menu", 127),
+    ("NumLock", 69),
+    ("Fn", 464),
 ];
 
 pub type KeyName = &'static str;
@@ -47,8 +127,14 @@ pub fn key_from_evdev(code: u16) -> Option<KeyName> {
 pub fn is_modifier(key: &str) -> bool {
     matches!(
         key,
-        "LeftCtrl" | "RightCtrl" | "LeftShift" | "RightShift" | "LeftAlt" | "RightAlt"
-            | "LeftWin" | "RightWin"
+        "LeftCtrl"
+            | "RightCtrl"
+            | "LeftShift"
+            | "RightShift"
+            | "LeftAlt"
+            | "RightAlt"
+            | "LeftWin"
+            | "RightWin"
     )
 }
 
@@ -61,9 +147,7 @@ fn squash(s: &str) -> String {
 
 fn lookup(name: &str) -> Option<KeyName> {
     let q = squash(name);
-    KEYS.iter()
-        .find(|(n, _)| squash(n) == q)
-        .map(|(n, _)| *n)
+    KEYS.iter().find(|(n, _)| squash(n) == q).map(|(n, _)| *n)
 }
 
 /// One required position of the chord: any of `keys` satisfies it.
@@ -73,10 +157,22 @@ pub struct Slot {
     pub keys: &'static [KeyName],
 }
 
-const CTRL: Slot = Slot { label: "Ctrl", keys: &["LeftCtrl", "RightCtrl"] };
-const SHIFT: Slot = Slot { label: "Shift", keys: &["LeftShift", "RightShift"] };
-const ALT: Slot = Slot { label: "Alt", keys: &["LeftAlt", "RightAlt"] };
-const WIN: Slot = Slot { label: "Win", keys: &["LeftWin", "RightWin"] };
+const CTRL: Slot = Slot {
+    label: "Ctrl",
+    keys: &["LeftCtrl", "RightCtrl"],
+};
+const SHIFT: Slot = Slot {
+    label: "Shift",
+    keys: &["LeftShift", "RightShift"],
+};
+const ALT: Slot = Slot {
+    label: "Alt",
+    keys: &["LeftAlt", "RightAlt"],
+};
+const WIN: Slot = Slot {
+    label: "Win",
+    keys: &["LeftWin", "RightWin"],
+};
 
 fn slot_for(token: &str) -> Option<Slot> {
     let q = squash(token);
@@ -111,10 +207,17 @@ fn slot_for(token: &str) -> Option<Slot> {
         "function" => "Fn",
         _ => "",
     };
-    let name = if aliased.is_empty() { lookup(token)? } else { lookup(aliased)? };
+    let name = if aliased.is_empty() {
+        lookup(token)?
+    } else {
+        lookup(aliased)?
+    };
     Some(Slot {
         label: name,
-        keys: KEYS.iter().find(|(n, _)| *n == name).map(|(n, _)| std::slice::from_ref(n))?,
+        keys: KEYS
+            .iter()
+            .find(|(n, _)| *n == name)
+            .map(|(n, _)| std::slice::from_ref(n))?,
     })
 }
 
@@ -176,8 +279,13 @@ impl Chord {
         is_fkey
             || matches!(
                 label,
-                "Fn" | "CapsLock" | "ScrollLock" | "Pause" | "PrintScreen" | "Insert"
-                    | "Menu" | "NumLock"
+                "Fn" | "CapsLock"
+                    | "ScrollLock"
+                    | "Pause"
+                    | "PrintScreen"
+                    | "Insert"
+                    | "Menu"
+                    | "NumLock"
             )
     }
 
@@ -327,7 +435,9 @@ mod tests {
 
     #[test]
     fn lone_typing_keys_are_unsafe() {
-        for ok in ["F8", "Fn", "CapsLock", "Ctrl+B", "Ctrl+Win", "RightAlt", "Pause"] {
+        for ok in [
+            "F8", "Fn", "CapsLock", "Ctrl+B", "Ctrl+Win", "RightAlt", "Pause",
+        ] {
             assert!(Chord::parse(ok).unwrap().is_safe(), "{ok}");
         }
         for bad in ["W", "Space", "5", "Enter", "Tab"] {

@@ -1,9 +1,11 @@
 [Desktop Entry]
 Type=Application
 Name=Ascuta Desktop
-Comment=Private offline dictation
-Exec=/home/emavgl/Projects/ascuta-desktop/run.sh
-Path=/home/emavgl/Projects/ascuta-desktop
+GenericName=Dictation
+Comment=Offline dictation: hold the hotkey, speak, and the text is typed where the cursor is
+Exec=ascuta-desktop --gui
+TryExec=ascuta-desktop
 Terminal=false
-Icon=audio-input-microphone
-Categories=Utility;AudioVideo;
+Categories=Utility;Accessibility;
+Keywords=dictation;speech;voice;transcription;offline;
+StartupNotify=false

@@ -84,8 +84,12 @@ impl SettingsApp {
         let shared = Arc::new(Mutex::new(Shared::default()));
         let alive = Arc::new(AtomicBool::new(true));
         {
-            let (api, shared, alive, ctx) =
-                (api.clone(), shared.clone(), alive.clone(), cc.egui_ctx.clone());
+            let (api, shared, alive, ctx) = (
+                api.clone(),
+                shared.clone(),
+                alive.clone(),
+                cc.egui_ctx.clone(),
+            );
             std::thread::spawn(move || {
                 while alive.load(Ordering::Relaxed) {
                     let res = api.get_state();
@@ -318,7 +322,10 @@ impl eframe::App for SettingsApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let (state, connected, toast) = {
             let mut s = self.shared.lock().unwrap();
-            if s.toast.as_ref().is_some_and(|(_, t)| t.elapsed() > Duration::from_secs(3)) {
+            if s.toast
+                .as_ref()
+                .is_some_and(|(_, t)| t.elapsed() > Duration::from_secs(3))
+            {
                 s.toast = None;
             }
             (
@@ -383,28 +390,33 @@ impl eframe::App for SettingsApp {
         }
 
         egui::CentralPanel::default().show(ui, |ui| {
-            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                let side = ((ui.available_width() - 720.0) / 2.0).max(8.0);
-                ui.set_max_width(ui.available_width() - side);
-                ui.add_space(8.0);
-                ui.horizontal_wrapped(|ui| ui.add_space(side));
-                ui.heading("Ascuta Desktop");
-                ui.label(RichText::new("Private dictation, fully offline. No account, no cloud.").color(ON_SURFACE_VARIANT));
-                ui.add_space(8.0);
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    let side = ((ui.available_width() - 720.0) / 2.0).max(8.0);
+                    ui.set_max_width(ui.available_width() - side);
+                    ui.add_space(8.0);
+                    ui.horizontal_wrapped(|ui| ui.add_space(side));
+                    ui.heading("Ascuta Desktop");
+                    ui.label(
+                        RichText::new("Private dictation, fully offline. No account, no cloud.")
+                            .color(ON_SURFACE_VARIANT),
+                    );
+                    ui.add_space(8.0);
 
-                let Some(st) = state else {
-                    ui.label(if connected {
-                        "Loading..."
-                    } else {
-                        "Cannot reach Ascuta. Is the app running?"
-                    });
-                    return;
-                };
-                if !connected {
-                    ui.colored_label(ERROR, "Connection to Ascuta lost, retrying...");
-                }
-                self.body(ui, &st);
-            });
+                    let Some(st) = state else {
+                        ui.label(if connected {
+                            "Loading..."
+                        } else {
+                            "Cannot reach Ascuta. Is the app running?"
+                        });
+                        return;
+                    };
+                    if !connected {
+                        ui.colored_label(ERROR, "Connection to Ascuta lost, retrying...");
+                    }
+                    self.body(ui, &st);
+                });
         });
 
         if let Some(model) = self.confirm_delete.clone() {
@@ -446,12 +458,20 @@ impl SettingsApp {
 
         // Banner
         egui::Frame::new()
-            .fill(if ready { PRIMARY_CONTAINER } else { SURFACE_VARIANT })
+            .fill(if ready {
+                PRIMARY_CONTAINER
+            } else {
+                SURFACE_VARIANT
+            })
             .corner_radius(16.0)
             .inner_margin(16.0)
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
-                let fg = if ready { ON_PRIMARY_CONTAINER } else { ON_SURFACE };
+                let fg = if ready {
+                    ON_PRIMARY_CONTAINER
+                } else {
+                    ON_SURFACE
+                };
                 ui.label(
                     RichText::new(if ready { "All set" } else { "Setup needed" })
                         .size(22.0)
@@ -550,7 +570,14 @@ impl SettingsApp {
         // "Win" is the Cmd key on Mac-style keyboards.
         ui.horizontal_wrapped(|ui| {
             ui.label(RichText::new("Presets:").small().color(ON_SURFACE_VARIANT));
-            for preset in ["Ctrl+Win", "Ctrl+Alt", "Ctrl+Shift", "RightAlt", "RightCtrl", "F8"] {
+            for preset in [
+                "Ctrl+Win",
+                "Ctrl+Alt",
+                "Ctrl+Shift",
+                "RightAlt",
+                "RightCtrl",
+                "F8",
+            ] {
                 let label = if preset == "Ctrl+Win" {
                     "Ctrl+Win / Ctrl+Cmd"
                 } else {
@@ -738,58 +765,56 @@ impl SettingsApp {
         let str_of = |v: &Value| v.as_str().unwrap_or("").to_string();
         let model = current.to_string();
         let id = str_of(&m["id"]);
-            let desc = str_of(&m["description"]);
-            let status = &m["status"];
-            let state = status["state"].as_str().unwrap_or("missing");
-            match state {
-                "downloading" => {
-                    let done = status["done"].as_u64().unwrap_or(0);
-                    let total = status["total"].as_u64();
-                    let frac = total.filter(|t| *t > 0).map(|t| done as f32 / t as f32);
-                    ui.label(RichText::new(&id));
-                    ui.add(
-                        egui::ProgressBar::new(frac.unwrap_or(0.0))
-                            .text(match total {
-                                Some(t) => format!("{} / {} MB", mb(done), mb(t)),
-                                None => format!("{} MB", mb(done)),
-                            })
-                            .animate(frac.is_none()),
-                    );
-                    ui.separator();
-                }
-                "ready" => {
-                    let in_use = id == model;
-                    row(ui, &id, &format!("{desc} — downloaded"), |ui| {
-                        if text_button(ui, RichText::new("Delete").color(ERROR)).clicked() {
-                            self.confirm_delete = Some(id.clone());
-                        }
-                        if selectable {
-                            if in_use {
-                                ui.label(RichText::new("In use").color(ON_SURFACE_VARIANT));
-                            } else if text_button(ui, RichText::new("Use").color(PRIMARY))
-                                .clicked()
-                            {
-                                self.post("/api/settings", json!({"model": id}), "Model changed");
-                            }
-                        }
-                    });
-                }
-                "failed" => {
-                    let err = str_of(&status["error"]);
-                    row(ui, &id, &format!("Download failed: {err}"), |ui| {
-                        if primary_button(ui, "Retry").clicked() {
-                            self.post("/api/download", json!({"model": id}), "");
-                        }
-                    });
-                }
-                _ => {
-                    row(ui, &id, &desc, |ui| {
-                        if primary_button(ui, "Download").clicked() {
-                            self.post("/api/download", json!({"model": id}), "");
-                        }
-                    });
-                }
+        let desc = str_of(&m["description"]);
+        let status = &m["status"];
+        let state = status["state"].as_str().unwrap_or("missing");
+        match state {
+            "downloading" => {
+                let done = status["done"].as_u64().unwrap_or(0);
+                let total = status["total"].as_u64();
+                let frac = total.filter(|t| *t > 0).map(|t| done as f32 / t as f32);
+                ui.label(RichText::new(&id));
+                ui.add(
+                    egui::ProgressBar::new(frac.unwrap_or(0.0))
+                        .text(match total {
+                            Some(t) => format!("{} / {} MB", mb(done), mb(t)),
+                            None => format!("{} MB", mb(done)),
+                        })
+                        .animate(frac.is_none()),
+                );
+                ui.separator();
             }
+            "ready" => {
+                let in_use = id == model;
+                row(ui, &id, &format!("{desc} — downloaded"), |ui| {
+                    if text_button(ui, RichText::new("Delete").color(ERROR)).clicked() {
+                        self.confirm_delete = Some(id.clone());
+                    }
+                    if selectable {
+                        if in_use {
+                            ui.label(RichText::new("In use").color(ON_SURFACE_VARIANT));
+                        } else if text_button(ui, RichText::new("Use").color(PRIMARY)).clicked() {
+                            self.post("/api/settings", json!({"model": id}), "Model changed");
+                        }
+                    }
+                });
+            }
+            "failed" => {
+                let err = str_of(&status["error"]);
+                row(ui, &id, &format!("Download failed: {err}"), |ui| {
+                    if primary_button(ui, "Retry").clicked() {
+                        self.post("/api/download", json!({"model": id}), "");
+                    }
+                });
+            }
+            _ => {
+                row(ui, &id, &desc, |ui| {
+                    if primary_button(ui, "Download").clicked() {
+                        self.post("/api/download", json!({"model": id}), "");
+                    }
+                });
+            }
+        }
     }
 }
 

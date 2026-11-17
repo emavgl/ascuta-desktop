@@ -76,11 +76,10 @@ pub fn apply(enabled: bool) -> Result<()> {
     {
         use winreg::enums::HKEY_CURRENT_USER;
         use winreg::RegKey;
-        let run = RegKey::predef(HKEY_CURRENT_USER)
-            .open_subkey_with_flags(
-                "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-                winreg::enums::KEY_SET_VALUE,
-            )?;
+        let run = RegKey::predef(HKEY_CURRENT_USER).open_subkey_with_flags(
+            "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+            winreg::enums::KEY_SET_VALUE,
+        )?;
         if enabled {
             run.set_value("Ascuta", &format!("\"{}\"", exe.display()))?;
         } else {

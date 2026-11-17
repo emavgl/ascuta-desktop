@@ -1,8 +1,14 @@
-# ascuta-desktop — PLAN
+# ascuta-desktop — design notes
 
-Port Paseo transcription code 1:1 into a standalone multi-platform desktop dictation app (macOS, Windows, Linux), Whisper Flow-like. CPU by default, GPU optional. Whisper + Parakeet via sherpa-onnx. Basic UI for model + hotkey.
+> Historical design notes. Most of this plan is implemented; the
+> [`README`](README.md) describes what actually ships. The document is kept for
+> the architecture rationale and the model/runtime decisions.
 
-Source reference: `https://github.com/getpaseo/paseo` (cloned at `/tmp/opencode/paseo` for mapping).
+Port Paseo transcription code 1:1 into a standalone multi-platform desktop
+dictation app (macOS, Windows, Linux), Whisper Flow-like. CPU by default, GPU
+optional. Whisper + Parakeet via sherpa-onnx. Basic UI for model + hotkey.
+
+Source reference: `https://github.com/getpaseo/paseo` (Apache-2.0).
 
 ## 1. Goal / non-goals
 

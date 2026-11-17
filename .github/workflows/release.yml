@@ -2,6 +2,8 @@ name: release
 
 # Builds Linux, macOS and Windows packages when a `v*` tag is pushed and
 # attaches them (with checksums) to the GitHub release.
+#
+#   git tag v0.2.2 && git push origin v0.2.2
 
 on:
   push:
@@ -11,20 +13,38 @@ on:
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   linux-x86_64:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
+      - name: System libraries (ALSA + XKB + Wayland headers)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libasound2-dev libxkbcommon-dev libwayland-dev
+
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
       - uses: Swatinem/rust-cache@v2
-      - name: Test
+
+      - name: Gate (fmt + clippy + test)
         working-directory: src-tauri
-        run: cargo test
-      - name: System libraries (ALSA headers for the microphone)
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test --locked
+
       - name: Build and package
         run: packaging/build-release.sh "${GITHUB_REF_NAME:-dev}"
+
       - uses: actions/upload-artifact@v4
         with:
           name: linux
@@ -34,20 +54,27 @@ jobs:
 
   macos:
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: macos-14   # Apple silicon
-          - os: macos-13   # Intel
+          - os: macos-15        # Apple silicon
+          - os: macos-15-intel  # Intel
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
+
       - uses: Swatinem/rust-cache@v2
+
       - name: Test
         working-directory: src-tauri
-        run: cargo test
+        run: cargo test --locked
+
       - name: Build .app and .dmg
         run: packaging/macos/build-app.sh "${GITHUB_REF_NAME:-dev}"
+
       - uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.os }}
@@ -55,21 +82,29 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
+
       - uses: Swatinem/rust-cache@v2
+
       - name: Test
         working-directory: src-tauri
-        run: cargo test
+        run: cargo test --locked
+
       - name: Build zip
         shell: pwsh
         run: packaging/windows/build-zip.ps1 "${env:GITHUB_REF_NAME}"
+
       - name: Install NSIS
         run: choco install nsis -y --no-progress
+
       - name: Build setup exe
         shell: pwsh
         run: packaging/windows/build-installer.ps1 "${env:GITHUB_REF_NAME}"
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -82,11 +117,16 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [linux-x86_64, macos, windows]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
+
+      - name: List assets
+        run: ls -lh dist
+
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
