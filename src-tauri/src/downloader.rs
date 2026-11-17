@@ -6,10 +6,13 @@
 //! `requiredFiles` rule as `models::missing_files`), plus the blocking
 //! fetcher (`ureq`) with progress callback and temp-then-rename install.
 
+use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
+use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArchiveKind {
@@ -137,12 +140,77 @@ fn install(staging: &Path, extracted_dir: &str, dest: &Path) -> Result<()> {
     Ok(())
 }
 
-fn sha256_file(path: &Path) -> Result<String> {
-    use sha2::{Digest, Sha256};
-    let mut f = std::fs::File::open(path)?;
-    let mut h = Sha256::new();
-    std::io::copy(&mut f, &mut h)?;
-    Ok(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
+/// SHA-256 over the bytes as they arrive, so verification never needs a second
+/// copy of a multi-gigabyte archive on disk.
+struct HashingReader<R> {
+    inner: R,
+    hasher: Sha256,
+}
+
+impl<R: Read> Read for HashingReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        self.hasher.update(&buf[..n]);
+        Ok(n)
+    }
+}
+
+impl<R> HashingReader<R> {
+    fn finish(self) -> String {
+        self.hasher
+            .finalize()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect()
+    }
+}
+
+/// The rolling sherpa-onnx release manifest: `<asset>\t<sha256>` per line.
+const SHERPA_CHECKSUMS_URL: &str =
+    "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/checksum.txt";
+
+fn is_sha256_hex(s: &str) -> bool {
+    s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+/// Parse the release `checksum.txt` into `asset name -> lowercase sha256`.
+/// Comments, blank lines and malformed entries are ignored (same rules as the
+/// Android app's `parseSherpaChecksums`).
+pub fn parse_sherpa_checksums(text: &str) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut fields = line.split_whitespace();
+        let (Some(name), Some(hash)) = (fields.next(), fields.next()) else {
+            continue;
+        };
+        if !name.is_empty() && is_sha256_hex(hash) {
+            out.insert(name.to_string(), hash.to_ascii_lowercase());
+        }
+    }
+    out
+}
+
+/// The hash the upstream release publishes for `asset` right now, or `None`
+/// when the manifest cannot be fetched (offline) or does not list it.
+fn live_sherpa_checksum(asset: &str) -> Option<String> {
+    let text = ureq::get(SHERPA_CHECKSUMS_URL)
+        .timeout(Duration::from_secs(20))
+        .call()
+        .ok()?
+        .into_string()
+        .ok()?;
+    parse_sherpa_checksums(&text).remove(asset)
+}
+
+/// True when `actual` matches the pinned catalog hash or the live manifest.
+fn checksum_accepted(actual: &str, pinned: Option<&str>, live: Option<&str>) -> bool {
+    let a = actual.to_ascii_lowercase();
+    pinned.is_some_and(|p| p.eq_ignore_ascii_case(&a))
+        || live.is_some_and(|l| l.eq_ignore_ascii_case(&a))
 }
 
 /// Download + extract + verify a model (Paseo `ensureSherpaOnnxModels`).
@@ -173,19 +241,51 @@ pub fn download_model(
         let total = resp
             .header("Content-Length")
             .and_then(|v| v.parse::<u64>().ok());
-        let reader = ProgressReader {
-            inner: resp.into_reader(),
-            done: 0,
-            total,
-            cb: progress,
-        };
         let file_name = plan.url.rsplit('/').next();
-        extract_named(reader, plan.archive, &staging, file_name)?;
-        if let (Some(expected), Some(name)) = (spec.sha256, file_name) {
-            let actual = sha256_file(&staging.join(name))?;
-            if actual != expected {
-                bail!("checksum mismatch for {name} (download corrupted)");
+        let asset = file_name
+            .map(str::to_string)
+            .unwrap_or_else(|| plan.model_id.clone());
+        let mut reader = HashingReader {
+            inner: ProgressReader {
+                inner: resp.into_reader(),
+                done: 0,
+                total,
+                cb: progress,
+            },
+            hasher: Sha256::new(),
+        };
+        extract_named(&mut reader, plan.archive, &staging, file_name)?;
+        // The tar/bzip2 decoders may stop at the archive trailer; hash the rest
+        // of the response too so the digest always covers the whole asset.
+        std::io::copy(&mut reader, &mut std::io::sink())?;
+        let actual = reader.finish();
+
+        // The `.litertlm` files live on Hugging Face (pinned commit, no rolling
+        // manifest). Sherpa archives also consult the release `checksum.txt`, so
+        // an upstream rebuild does not fail every install on a stale pin.
+        let live = if spec.family == crate::models::SttFamily::Llm {
+            None
+        } else {
+            live_sherpa_checksum(&asset)
+        };
+        if let (Some(pinned), Some(upstream)) = (spec.sha256, live.as_deref()) {
+            if !pinned.eq_ignore_ascii_case(upstream) {
+                eprintln!(
+                    "ascuta: {asset}: checksum drift (catalog={pinned} upstream={upstream}); \
+                     accepting either"
+                );
             }
+        }
+        if spec.sha256.is_none() && live.is_none() {
+            eprintln!("ascuta: {asset}: no checksum available, installing unverified");
+        } else if !checksum_accepted(&actual, spec.sha256, live.as_deref()) {
+            bail!(
+                "checksum mismatch for {asset}: expected {}, got {actual}",
+                spec.sha256
+                    .map(str::to_string)
+                    .or(live)
+                    .unwrap_or_else(|| "?".into())
+            );
         }
         if is_complete(models_dir, model_id) {
             return Ok(()); // another instance finished first; keep theirs
@@ -409,5 +509,52 @@ mod tests {
     fn unsupported_archive_errors() {
         let out = tempfile::tempdir().unwrap();
         assert!(extract_archive(&b""[..], ArchiveKind::Zip, out.path()).is_err());
+    }
+
+    #[test]
+    fn hashing_reader_covers_every_byte() {
+        let data = b"ascuta archive bytes";
+        let mut reader = HashingReader {
+            inner: &data[..],
+            hasher: Sha256::new(),
+        };
+        let mut head = [0u8; 5];
+        reader.read_exact(&mut head).unwrap();
+        std::io::copy(&mut reader, &mut std::io::sink()).unwrap();
+        let actual = reader.finish();
+
+        let mut expected = Sha256::new();
+        expected.update(data);
+        let expected: String = expected
+            .finalize()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn checksum_manifest_parsing() {
+        let text = "# generated by sherpa-onnx\n\
+                    sherpa-onnx-whisper-base.tar.bz2\t911B2083EFD7C0DCA2AC3B358B75222660DC09FB716D64FBFc417ba6c99ff3de\n\
+                    malformed-line-without-a-hash\n\
+                    too-short abcdef\n";
+        let parsed = parse_sherpa_checksums(text);
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(
+            parsed["sherpa-onnx-whisper-base.tar.bz2"],
+            "911b2083efd7c0dca2ac3b358b75222660dc09fb716d64fbfc417ba6c99ff3de"
+        );
+    }
+
+    #[test]
+    fn checksum_accepts_pinned_or_live() {
+        let actual = "aa".repeat(32);
+        let other = "bb".repeat(32);
+        assert!(checksum_accepted(&actual, Some(&actual), None));
+        assert!(checksum_accepted(&actual, None, Some(&actual)));
+        assert!(checksum_accepted(&actual, Some(&other), Some(&actual)));
+        assert!(!checksum_accepted(&actual, Some(&other), None));
+        assert!(!checksum_accepted(&actual, None, None));
     }
 }

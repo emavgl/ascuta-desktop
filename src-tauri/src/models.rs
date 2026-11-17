@@ -33,7 +33,11 @@ pub struct ModelSpec {
     pub required_files: &'static [&'static str],
     pub description: &'static str,
     pub default_for_en: bool,
-    /// Lower-case hex SHA-256 of the downloaded file, when known.
+    /// Lower-case hex SHA-256 of the downloaded **archive bytes** (or the
+    /// `.litertlm` file), checked before extracting/installing. The downloader
+    /// also reads the sherpa-onnx release `checksum.txt` at download time and
+    /// accepts either value, so an upstream rebuild cannot make every install
+    /// fail on a stale pin. `None` = unverified (the catalog test forbids it).
     pub sha256: Option<&'static str>,
 }
 
@@ -51,7 +55,7 @@ pub const PARAKEET_V2_INT8: ModelSpec = ModelSpec {
     ],
     description: "NVIDIA Parakeet TDT v2 (offline NeMo transducer, English).",
     default_for_en: true,
-    sha256: None,
+    sha256: Some("6fc4426b54aa549a0019b8a75b8dea59164e71790a37ac56a045ad57f915f714"),
 };
 
 pub const PARAKEET_V3_INT8: ModelSpec = ModelSpec {
@@ -68,43 +72,55 @@ pub const PARAKEET_V3_INT8: ModelSpec = ModelSpec {
     ],
     description: "NVIDIA Parakeet TDT v3 (offline NeMo transducer, 25 European languages).",
     default_for_en: false,
-    sha256: None,
+    sha256: Some("1495e91b59d7fc53ddca91f3431758ec99f8fa253fdb0e1e851be0f72b14b0f9"),
 };
 
 pub const WHISPER_BASE_INT8: ModelSpec = ModelSpec {
     id: "whisper-base-int8",
     family: SttFamily::Whisper,
     kind: ModelKind::SttOffline,
-    archive_url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base-int8.tar.bz2",
-    extracted_dir: "sherpa-onnx-whisper-base-int8",
-    required_files: &["encoder.int8.onnx", "decoder.int8.onnx", "tokens.txt"],
+    archive_url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.tar.bz2",
+    extracted_dir: "sherpa-onnx-whisper-base",
+    required_files: &[
+        "base-encoder.int8.onnx",
+        "base-decoder.int8.onnx",
+        "base-tokens.txt",
+    ],
     description: "Whisper base int8 (99+ languages, fallback for non-EU).",
     default_for_en: false,
-    sha256: None,
+    sha256: Some("911b2083efd7c0dca2ac3b358b75222660dc09fb716d64fbfc417ba6c99ff3de"),
 };
 
 pub const WHISPER_SMALL_INT8: ModelSpec = ModelSpec {
     id: "whisper-small-int8",
     family: SttFamily::Whisper,
     kind: ModelKind::SttOffline,
-    archive_url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small-int8.tar.bz2",
-    extracted_dir: "sherpa-onnx-whisper-small-int8",
-    required_files: &["encoder.int8.onnx", "decoder.int8.onnx", "tokens.txt"],
+    archive_url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2",
+    extracted_dir: "sherpa-onnx-whisper-small",
+    required_files: &[
+        "small-encoder.int8.onnx",
+        "small-decoder.int8.onnx",
+        "small-tokens.txt",
+    ],
     description: "Whisper small int8 (99+ languages, better accuracy, ~500MB).",
     default_for_en: false,
-    sha256: None,
+    sha256: Some("486a46afbb7ba798507190ffe02fea2dd726049af212e774537efac6afb210a6"),
 };
 
 pub const WHISPER_LARGE_V3_TURBO_INT8: ModelSpec = ModelSpec {
     id: "whisper-large-v3-turbo-int8",
     family: SttFamily::Whisper,
     kind: ModelKind::SttOffline,
-    archive_url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-large-v3-turbo-int8.tar.bz2",
-    extracted_dir: "sherpa-onnx-whisper-large-v3-turbo-int8",
-    required_files: &["encoder.int8.onnx", "decoder.int8.onnx", "tokens.txt"],
+    archive_url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-turbo.tar.bz2",
+    extracted_dir: "sherpa-onnx-whisper-turbo",
+    required_files: &[
+        "turbo-encoder.int8.onnx",
+        "turbo-decoder.int8.onnx",
+        "turbo-tokens.txt",
+    ],
     description: "Whisper large-v3-turbo int8 (accuracy-first, ~1GB, warn on RAM).",
     default_for_en: false,
-    sha256: None,
+    sha256: Some("b11acbbcd660b44a8e0df33724feb5aaa709cf65668f2823d59f656312544f22"),
 };
 
 /// Gemma 4 E2B for LiteRT-LM — the exact file the Android app downloads and
@@ -113,7 +129,7 @@ pub const GEMMA_4_E2B_LITERT: ModelSpec = ModelSpec {
     id: "gemma-4-e2b-it-litertlm",
     family: SttFamily::Llm,
     kind: ModelKind::SttOffline,
-    archive_url: "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
+    archive_url: "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/2d74ac41a33d7da82f39f7d5720a04c68514a103/gemma-4-E2B-it.litertlm",
     extracted_dir: "gemma-4-E2B-it-litert-lm",
     required_files: &["gemma-4-E2B-it.litertlm"],
     description: "Gemma 4 E2B via LiteRT-LM (transcript cleanup, ~2.6 GB, optional).",
@@ -233,5 +249,39 @@ mod tests {
             PathBuf::from("/tmp/ascuta-test-models")
         );
         std::env::remove_var("ASCUTA_MODELS_DIR");
+    }
+
+    #[test]
+    fn every_model_pins_a_valid_checksum() {
+        for spec in ALL_MODELS.iter().chain(LLM_MODELS.iter()) {
+            let hash = spec
+                .sha256
+                .unwrap_or_else(|| panic!("{} has no pinned sha256", spec.id));
+            assert_eq!(hash.len(), 64, "{} hash length", spec.id);
+            assert!(
+                hash.bytes().all(|b| b.is_ascii_hexdigit()),
+                "{} hash is not hex",
+                spec.id
+            );
+            assert_eq!(hash, hash.to_ascii_lowercase(), "{} hash case", spec.id);
+        }
+    }
+
+    #[test]
+    fn sherpa_urls_point_at_the_rolling_release() {
+        // The 404 class of bug: every speech asset must live in `asr-models`
+        // with the `.tar.bz2` name the release manifest publishes.
+        for spec in ALL_MODELS.iter() {
+            assert!(
+                spec.archive_url.contains("/asr-models/"),
+                "{} is not on the asr-models release",
+                spec.id
+            );
+            assert!(
+                spec.archive_url.ends_with(".tar.bz2"),
+                "{} is not a tar.bz2 asset",
+                spec.id
+            );
+        }
     }
 }

@@ -90,7 +90,8 @@ and **Input Monitoring** (to read the hotkey).
 1. Open **Ascuta** from the tray/menu bar (or run `ascuta-desktop`).
 2. Download a model: Parakeet v2 for English (~640 MB), Parakeet v3 for 25
    European languages (~670 MB), or a Whisper model for other languages.
-   Downloads are HTTPS and verified when a checksum is known.
+   Downloads are HTTPS and checked against a pinned SHA-256 (plus the
+   upstream release manifest for sherpa-onnx assets).
 3. Pick the hotkey, language and input mode. Close the window.
 4. Put the cursor in any text field, hold the hotkey, speak, release.
 

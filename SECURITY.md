@@ -30,8 +30,11 @@ fix before disclosing publicly.
   Windows `SendInput`). The same permission could be abused by any local
   process running as your user; Ascuta never sends events that you did not
   dictate.
-- **Model downloads.** Models come from the sherpa-onnx release buckets over
-  HTTPS. When a model entry has a known SHA-256 it is verified after download.
+- **Model downloads.** Models come from the sherpa-onnx release buckets and
+  Hugging Face over HTTPS. Every archive is checked against a pinned SHA-256;
+  sherpa-onnx assets are also checked against the release's current
+  `checksum.txt` (either hash is accepted, so an upstream rebuild does not break
+  installs).
 - **Bundled cleanup model (optional).** Gemma cleanup runs through a local
   Python sidecar (LiteRT-LM) and never contacts the network after installation.
 
