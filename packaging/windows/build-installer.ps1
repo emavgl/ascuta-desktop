@@ -5,7 +5,7 @@ param([string]$Version = "")
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 Set-Location $root
-if (-not $Version) {
+if ($Version -notmatch '^v?\d+\.\d+\.\d+$') {
   $line = Select-String -Path Cargo.toml -Pattern '^version' | Select-Object -First 1
   $Version = "v" + ($line.Line -replace '.*"(.*)".*', '$1')
 }
@@ -38,6 +38,8 @@ if (-not $makensis) {
 }
 
 Copy-Item packaging\windows\app.ico $src -Force
+Write-Host "Installer source: $src"
+Get-ChildItem -Force $src | Select-Object Length, Name | Format-Table | Out-String | Write-Host
 Push-Location packaging\windows
 try {
   & $makensis /V2 "-DVERSION=$num" "-DSOURCE_DIR=$src" "-DOUTFILE=$out" installer.nsi

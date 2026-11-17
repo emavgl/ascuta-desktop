@@ -5,7 +5,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
 
-VERSION="${1:-v$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"(.*)".*/\1/')}"
+VERSION="${1:-}"
+if ! [[ "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  VERSION="v$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"(.*)".*/\1/')"
+fi
 PKG="ascuta-desktop-${VERSION}-linux-x86_64"
 
 cargo build --release --locked --features "capture sherpa"

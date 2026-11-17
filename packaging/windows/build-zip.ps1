@@ -3,7 +3,7 @@
 param([string]$Version = "")
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..\..")
-if (-not $Version) {
+if ($Version -notmatch '^v?\d+\.\d+\.\d+$') {
   $line = Select-String -Path Cargo.toml -Pattern '^version' | Select-Object -First 1
   $Version = "v" + ($line.Line -replace '.*"(.*)".*', '$1')
 }

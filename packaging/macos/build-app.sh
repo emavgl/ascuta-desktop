@@ -4,7 +4,10 @@
 # Needs: Rust, Xcode command line tools. Output: dist/Ascuta-<version>-macos-<arch>.dmg
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-VERSION="${1:-v$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"(.*)".*/\1/')}"
+VERSION="${1:-}"
+if ! [[ "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  VERSION="v$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"(.*)".*/\1/')"
+fi
 ARCH="$(uname -m)"
 APP="dist/Ascuta.app"
 
